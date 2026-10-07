@@ -1,5 +1,5 @@
--- PingClick (WoW Forever / Retail API)
--- Click the left mouse button three times (or twice, see /pingclick) on the same spot to open a small
+-- EasyPing (WoW Forever / Retail API)
+-- Click the left mouse button three times (or twice, see /easyping) on the same spot to open a small
 -- ping wheel there. Addons may not call the ping API, so each wheel button is a secure button running
 -- Blizzard's "/ping" macro command, which the client resolves itself:
 --   clicked on a unit frame   -> that frame's unit        /ping [@unit] <type>
@@ -7,18 +7,18 @@
 --                                nameplate, party, raid...), else a contextual ping at the cursor
 --   clicked on the ground     -> the spot under the cursor  /ping [@cursor] <type>
 -- Secure buttons cannot be shown or changed in combat, so the wheel only opens out of combat.
---   /pingclick                 settings
---   /pingclick clicks 2|3      how many clicks open the wheel
---   /pingclick interval <s>    longest pause between clicks (default 0.4)
---   /pingclick size <px>       icon size (default 28)
---   /pingclick test            open the wheel at the cursor
+--   /easyping                 settings
+--   /easyping clicks 2|3      how many clicks open the wheel
+--   /easyping interval <s>    longest pause between clicks (default 0.4)
+--   /easyping size <px>       icon size (default 28)
+--   /easyping test            open the wheel at the cursor
 
 local ADDON_NAME = ...
 
 local DEFAULTS = { clicks = 3, interval = 0.4, size = 28, radius = 34, debug = false }
 local db
 
-local PREFIX = "|cff66ccffPingClick|r: "
+local PREFIX = "|cff66ccffEasyPing|r: "
 local function Print(fmt, ...)
     print(PREFIX .. (select("#", ...) > 0 and string.format(fmt, ...) or fmt))
 end
@@ -62,11 +62,11 @@ end
 ---------------------------------------------------------------------------
 -- Wheel: secure macro buttons around the click point
 ---------------------------------------------------------------------------
-local wheel = CreateFrame("Frame", "PingClickWheel", UIParent)
+local wheel = CreateFrame("Frame", "EasyPingWheel", UIParent)
 wheel:SetFrameStrata("DIALOG")
 wheel:SetSize(2, 2)
 wheel:Hide()
-tinsert(UISpecialFrames, "PingClickWheel") -- Escape closes it (from Blizzard's secure code, so also in combat)
+tinsert(UISpecialFrames, "EasyPingWheel") -- Escape closes it (from Blizzard's secure code, so also in combat)
 
 wheel.spot = wheel:CreateTexture(nil, "OVERLAY")
 wheel.spot:SetSize(6, 6)
@@ -89,7 +89,7 @@ end
 local function Button(i)
     local b = buttons[i]
     if b then return b end
-    b = CreateFrame("Button", "PingClickButton" .. i, wheel, "SecureActionButtonTemplate")
+    b = CreateFrame("Button", "EasyPingButton" .. i, wheel, "SecureActionButtonTemplate")
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:SetAttribute("useOnKeyDown", false) -- act on mouse up, whatever ActionButtonUseKeyDown says
     b:SetAttribute("type1", "macro")      -- left: /ping; right: no action, just close
@@ -166,7 +166,7 @@ end
 
 local function Open(kind, unit)
     if InCombatLockdown() then
-        UIErrorsFrame:AddMessage("PingClick: the ping wheel cannot open in combat", 1, 0.3, 0.3)
+        UIErrorsFrame:AddMessage("EasyPing: the ping wheel cannot open in combat", 1, 0.3, 0.3)
         return
     end
     local ok, enabled = pcall(function() return C_Ping and C_Ping.IsPingSystemEnabled and C_Ping.IsPingSystemEnabled() end)
@@ -243,11 +243,11 @@ pcall(events.RegisterEvent, events, "PLAYER_REGEN_ENABLED")
 events:SetScript("OnEvent", function(_, event, arg)
     if event == "ADDON_LOADED" then
         if arg ~= ADDON_NAME then return end
-        PingClickDB = PingClickDB or {}
+        EasyPingDB = EasyPingDB or {}
         for k, v in pairs(DEFAULTS) do
-            if PingClickDB[k] == nil then PingClickDB[k] = v end
+            if EasyPingDB[k] == nil then EasyPingDB[k] = v end
         end
-        db = PingClickDB
+        db = EasyPingDB
         return
     elseif event == "PLAYER_REGEN_ENABLED" then
         if hideWhenSafe then
@@ -288,8 +288,8 @@ end)
 ---------------------------------------------------------------------------
 -- Slash commands
 ---------------------------------------------------------------------------
-SLASH_PINGCLICK1 = "/pingclick"
-SlashCmdList.PINGCLICK = function(msg)
+SLASH_EASYPING1 = "/easyping"
+SlashCmdList.EASYPING = function(msg)
     local cmd, arg = (msg or ""):lower():match("^%s*(%S*)%s*(%S*)")
     if cmd == "clicks" and (arg == "2" or arg == "3") then
         db.clicks = tonumber(arg)
@@ -308,6 +308,6 @@ SlashCmdList.PINGCLICK = function(msg)
         Open("world")
     else
         Print("%d clicks within %.2f s open the wheel; icons %d px.", db.clicks, db.interval, db.size)
-        Print("/pingclick clicks 2|3, interval <seconds>, size <px>, test, debug")
+        Print("/easyping clicks 2|3, interval <seconds>, size <px>, test, debug")
     end
 end

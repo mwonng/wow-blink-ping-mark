@@ -1,9 +1,9 @@
 ## Interface: 16001
-## Title: PingClick
+## Title: EasyPing
 ## Category: Interface
 ## Notes: Triple-click the left mouse button to open a ping wheel at the cursor (WoW Forever)
 ## Author: Michael
 ## Version: 0.0.1
-## SavedVariables: PingClickDB
+## SavedVariables: EasyPingDB
 
-PingClick.lua
+EasyPing.lua
