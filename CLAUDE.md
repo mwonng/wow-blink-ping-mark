@@ -7,6 +7,7 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
 
 ## Files
 - `BlinkPingMark.toc`, `BlinkPingMark.lua` (all logic), `## SavedVariables: BlinkPingMarkDB`
+- `README.md` — user-facing description (keep it in step with the panel and slash commands)
 
 ## How pings can be sent at all (researched 2026-10-07, wow-ui-source branch `forever`, 1.60.1)
 - `C_Ping.TogglePingListener`, `C_Ping.SendMacroPing` and everything in `C_PingSecure` are protected:
@@ -26,15 +27,13 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
   on PLAYER_REGEN_ENABLED. Escape closes it through UISpecialFrames (Blizzard's secure code).
 
 ## Behavior
-- Click counting on GLOBAL_MOUSE_DOWN (LeftButton): clicks count when they are within db.interval (0.4 s)
-  and 16 screen px of the previous one, and the cursor is on the world (`GetMouseFoci()[1]` nil or
-  WorldFrame) or on a unit frame (a frame in the focus's parent chain with a "unit" attribute). Any other
-  button or UI click resets. db.clicks (3; `/bpm clicks 2|3`) clicks open the wheel.
+- Click counting on GLOBAL_MOUSE_DOWN: db.button (ping) or the other button (mark); clicks count when they
+  are within db.interval (0.4 s) and 16 screen px of the previous one; the run's first click must be on the
+  world (`GetMouseFoci()[1]` nil or WorldFrame) or on a unit frame (a frame in the focus's parent chain with
+  a "unit" attribute; marks: unit frames only). db.clicks (3; `/bpm clicks 2|3`) clicks open the wheel.
 - Target decided when the wheel opens: unit frame -> its unit token; world unit (UnitExists("mouseover"))
   -> a stable token with the same GUID (target, focus, party/raid/pet, boss, arena, nameplate1-40), else a
   contextual `/ping <n>` (hit test where the wheel button is: may miss small units); nothing -> `@cursor`.
-  `@cursor` pings where the cursor is when the button is clicked, i.e. a wheel-radius (34 px) away from the
-  click point; the white dot marks the click point.
 - Wheel: `BlinkPingMarkWheel` (DIALOG strata, mouse-enabled: a click on it that is not on a wedge cancels) at the
   cursor, drawn with the game's radial wheel atlases (Blizzard_SharedXML/Blizzard_RadialWheel.lua, forever
   branch): Radial_Wheel_BG, Radial_Wheel_Frame_Count_<n>, Radial_Wheel_Select_Pointer (rotated to the cursor),
@@ -78,7 +77,11 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
 - `/bpm` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`, `quick`, `mark`, `group`,
   `test`, `debug` (prints the chosen target) still work.
 
+## Verified in game (2026-10-07)
+- `/ping` works from macrotext on a secure button; `@cursor` pings land exactly under the cursor at the click
+  (which is why ground pings are sent from the middle); the Radial_Wheel and Ping_Wheel_Icon atlases exist in
+  Forever and look like the game's wheel; the triple click opens the wheel on the world.
+
 ## Open items
-- Not yet tested in game: whether `/ping` works from macrotext (Comms Wheel uses real macros), whether
-  `@cursor` pings land where expected, the radial wheel / ping icon atlases, GetMouseFoci on the world,
-  EnableMouse gating of the secure buttons.
+- Not yet confirmed: the 8-wedge atlases (Radial_Wheel_Frame_Count_8 / Select_Wedge_Count_8) for the mark
+  wheel, and that the unit menu is closed cleanly on right-button runs.
