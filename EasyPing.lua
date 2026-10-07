@@ -344,14 +344,6 @@ local function MouseFocus()
     end
 end
 
-local function IsOurs(frame)
-    while frame do
-        if frame == wheel then return true end
-        frame = frame.GetParent and frame:GetParent()
-    end
-    return false
-end
-
 -- "world" (nothing but the game world under the cursor), "frame" + unit (a unit frame), or nil
 local function Under()
     local focus = MouseFocus()
@@ -393,13 +385,13 @@ events:SetScript("OnEvent", function(_, event, arg)
     end
     -- GLOBAL_MOUSE_DOWN
     if not db then return end
-    if arg ~= db.button then
+    if wheel:IsShown() then
+        -- any button outside the wheel closes it; clicks on the wheel are handled by its frame and buttons
+        if not wheel:IsMouseOver() then Close() end
         clicks = 0
         return
     end
-    if wheel:IsShown() then
-        if IsOurs(MouseFocus()) then return end -- the button handles it
-        Close()
+    if arg ~= db.button then
         clicks = 0
         return
     end
