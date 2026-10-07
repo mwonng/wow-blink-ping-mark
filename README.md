@@ -38,7 +38,7 @@ already has to remove it. Like the ping wheel it opens out of combat only.
 - the game's small wheel
 - "Send on wedge click": always send a ping as soon as a wedge is clicked. Faster, but a ground ping then
   lands under the cursor rather than where the wheel opened
-- where the wheels work: open world, cities, dungeons, raids, battlegrounds, arenas, and only in a group
+- where the wheels work: open world, cities, dungeons, raids, battlegrounds, arenas; marking only in a group
 
 Slash commands for the same things: `/bpm clicks 2|3`, `button left|right`, `interval <seconds>`,
 `small`, `quick`, `mark`, `group`, `test` (opens the wheel at the cursor), `debug`.
