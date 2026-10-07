@@ -13,7 +13,8 @@
 -- matter, so clicking the wedge sends at once.
 -- Secure buttons cannot be shown or changed in combat, so the wheel only opens out of combat.
 -- The other mouse button, clicked the same way on a unit frame, opens a wheel of raid target icons for
--- that unit (SetRaidTarget is not protected: plain buttons, works in combat too).
+-- that unit. SetRaidTarget is protected in Forever (ADDON_ACTION_FORBIDDEN), so the icons go through the
+-- "/tm [@unit] <n>" macro command on secure buttons, like the pings: out of combat only as well.
 -- Settings: Options -> AddOns -> BlinkPingMark (clicks, mouse button, where it is active), or
 --   /bpm                 open the settings
 --   /bpm clicks 2|3      how many clicks open the wheel
@@ -400,7 +401,8 @@ end)
 
 ---------------------------------------------------------------------------
 -- Mark wheel: the other mouse button on a unit frame; eight raid target icons, the same look.
--- SetRaidTarget is not protected, so this is an ordinary frame and works in combat.
+-- Each wedge is a secure button running "/tm [@unit] <n>" ("/tm [@unit] 0" clears the icon the unit
+-- already has); SetRaidTarget itself is protected in Forever.
 ---------------------------------------------------------------------------
 local MARKS = { "Star", "Circle", "Diamond", "Triangle", "Moon", "Square", "Cross", "Skull" }
 local RAID_ICONS = "Interface\\TargetingFrame\\UI-RaidTargetingIcons"
@@ -427,10 +429,33 @@ mark.CancelIcon:SetPoint("CENTER")
 mark.Hint = mark:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 mark.Hint:SetPoint("TOP", mark, "BOTTOM", 0, -2)
 mark.wedges = {}
+local markButtons = {}
 local markHover -- wedge index, false for the middle, nil outside the ring
 
 local function CloseMark()
+    if not mark:IsShown() then return end
+    if InCombatLockdown() then
+        mark:SetAlpha(0) -- secure children: cannot Hide in combat; hidden after combat
+        hideWhenSafe = true
+        return
+    end
     mark:Hide()
+end
+mark:SetScript("OnMouseDown", CloseMark) -- a click that no wedge button took: the middle or the ring's outside
+
+local function MarkButton_(i)
+    local b = markButtons[i]
+    if b then return b end
+    b = CreateFrame("Button", "BlinkPingMarkMarkButton" .. i, mark, "SecureActionButtonTemplate")
+    b:SetAllPoints(mark) -- the sector is decided by angle, see UpdateMark
+    b:SetFrameLevel(mark:GetFrameLevel() + 2)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:SetAttribute("useOnKeyDown", false)
+    b:SetAttribute("type1", "macro")
+    b:EnableMouse(false)
+    b:HookScript("OnClick", CloseMark) -- runs after the secure action
+    markButtons[i] = b
+    return b
 end
 
 -- Blizzard's unit menu opens on the right button's mouse-up; close it so the clicks do not land in it
@@ -522,6 +547,10 @@ local function LayoutMark()
             w.Text:SetPoint("LEFT", w.Icon, "RIGHT", 2, 0)
         end
         w.Text:SetShown(not db.small)
+        local b = MarkButton_(i)
+        b:SetAttribute("macrotext1", string.format("/tm [@%s] %d", mark.unit, i == current and 0 or i))
+        b:EnableMouse(false)
+        b:Show()
         angle = angle + interval
     end
     mark.hasSelected = hasSelected
@@ -556,15 +585,21 @@ local function UpdateMark()
     if pick == markHover then return end
     markHover = pick
     mark.CancelSelected:SetShown(pick == false)
+    local canChange = not InCombatLockdown()
     for i, w in ipairs(mark.wedges) do
         w.Selected:SetShown(mark.hasSelected and i == pick)
         w.Glow:SetShown(not mark.hasSelected and i == pick)
+        if canChange and markButtons[i] then markButtons[i]:EnableMouse(i == pick) end
     end
 end
 
 local function OpenMark(unit)
     if not (unit and UnitExists(unit)) then return end
     if not Allowed() then return end
+    if InCombatLockdown() then
+        UIErrorsFrame:AddMessage("BlinkPingMark: the mark wheel cannot open in combat", 1, 0.3, 0.3)
+        return
+    end
     CloseBlizzardMenus()
     mark.unit = unit
     LayoutMark()
@@ -574,21 +609,11 @@ local function OpenMark(unit)
     mark:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
     mark.Hint:SetText("Mark " .. (UnitName(unit) or unit))
     mark.openedAt = GetTime()
+    mark:SetAlpha(1)
     mark:Show()
     UpdateMark()
     Debug("mark wheel opened for %s", unit)
 end
-
-mark:SetScript("OnMouseDown", function()
-    if markHover then
-        local unit = mark.unit
-        if unit and UnitExists(unit) then
-            local current = GetRaidTargetIndex(unit)
-            SetRaidTarget(unit, current == markHover and 0 or markHover) -- the same icon again clears it
-        end
-    end
-    CloseMark()
-end)
 
 mark:SetScript("OnUpdate", function(self)
     local age = GetTime() - (self.openedAt or 0)
@@ -650,6 +675,7 @@ events:SetScript("OnEvent", function(_, event, arg)
         if hideWhenSafe then
             hideWhenSafe = false
             wheel:Hide()
+            mark:Hide()
         end
         return
     end
@@ -779,7 +805,7 @@ CheckRow({ { key = "small", text = "Small wheel", tip = "The game's small radial
 
 Header("Marking")
 Paragraph("The same clicks with the other mouse button on a unit frame open a wheel of raid target icons"
-    .. " for that unit. Clicking the icon the unit already has removes it. Works in combat.")
+    .. " for that unit. Clicking the icon the unit already has removes it. Out of combat only, like the pings.")
 CheckRow({ { key = "mark", text = "Mark wheel", tip = "Three (or two) clicks with the other mouse button on a unit frame." } },
     function() return db.mark end, function(_, on) db.mark = on end)
 

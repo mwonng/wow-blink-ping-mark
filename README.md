@@ -28,7 +28,7 @@ have spare, such as the middle button.
 
 Triple-click the **other** mouse button on a unit frame to open the marker wheel: Star, Circle, Diamond,
 Triangle, Moon, Square, Cross, Skull. Click a wedge to put that icon on the unit; click the icon the unit
-already has to remove it. Marking works in combat too.
+already has to remove it. Like the ping wheel it opens out of combat only.
 
 ## Settings
 
@@ -46,9 +46,10 @@ Slash commands for the same things: `/bpm clicks 2|3`, `button left|right`, `int
 ## How it works, briefly
 
 Addons may not call the ping API, so each wedge is a secure button running the game's `/ping` macro
-command, which the client resolves itself (`/ping [@unit] 1`, `/ping [@cursor] 2`, ...). Raid icons use
-`SetRaidTarget`, which addons may call. Clicks are counted from the `GLOBAL_MOUSE_DOWN` event; a run of
-clicks restarts when the cursor moves, the pause is too long or the other button is used.
+command, which the client resolves itself (`/ping [@unit] 1`, `/ping [@cursor] 2`, ...). Raid icons go the
+same way through the `/tm [@unit] <n>` macro command, because `SetRaidTarget` is protected in WoW: Forever.
+Clicks are counted from the `GLOBAL_MOUSE_DOWN` event; a run of clicks restarts when the cursor moves, the
+pause is too long or the other button is used.
 
 ## Support
 
