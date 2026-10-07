@@ -211,19 +211,20 @@ class PingWheel(Base):
         self.stub.Update(self.I.wheel)
         self.assertFalse(self.I.wheel.IsShown(self.I.wheel))
 
-    def test_unit_frame_pings_the_unit_on_the_wedge(self):
+    def test_unit_frame_pings_the_unit_from_the_middle(self):
         self.stub.units.party1 = self.lua.table(guid="g-party1", name="Aldric")
         self.stub.focus = self.unit_frame("party1")
         self.stub.cursor[1], self.stub.cursor[2] = 400, 300
         for _ in range(3):
             self.click()
         self.assertTrue(self.I.wheel.IsShown(self.I.wheel))
-        self.assertTrue(self.I.wheel.sendOnWedge)
+        self.assertFalse(self.I.wheel.sendOnWedge)  # units go through the middle too
         self.assertEqual(self.wedge_macros(self.I.buttons, 4)[1], "/ping [@party1] 2")
         self.hover(310, 300)  # Warning, on the left
         b = self.I.buttons
-        self.assertTrue(b[2].IsMouseEnabled(b[2]))
-        self.assertFalse(b[1].IsMouseEnabled(b[1]))
+        self.assertFalse(b[2].IsMouseEnabled(b[2]))
+        self.hover(402, 300)
+        self.assertEqual(self.I.send.GetAttribute(self.I.send, "macrotext1"), "/ping [@party1] 2")
         self.click()
         self.assertEqual(list(self.stub.macros.values()), ["/ping [@party1] 2"])
         self.assertFalse(self.I.wheel.IsShown(self.I.wheel))
@@ -236,7 +237,7 @@ class PingWheel(Base):
         for _ in range(3):
             self.click()
         self.assertEqual(self.wedge_macros(self.I.buttons, 4)[0], "/ping [@nameplate3] 1")
-        self.assertTrue(self.I.wheel.sendOnWedge)
+        self.assertFalse(self.I.wheel.sendOnWedge)
 
     def test_world_unit_that_is_the_target(self):
         self.stub.units.mouseover = self.lua.table(guid="g-boar", name="Boar")

@@ -10,12 +10,13 @@ ping wheel art. One mouse button pings, the other puts raid target icons on unit
 Triple-click the left mouse button (by default) to open the ping wheel: **Attack**, **Warning**,
 **On my way**, **Assist**.
 
-- **On a unit frame** (your target, party or raid frames, nameplates' frames): click a wedge and the ping
-  goes to that unit.
+Move the cursor onto a wedge to choose the ping, then click the wheel's middle to send it:
+
+- **On a unit frame** (your target, party or raid frames): the ping goes to that unit.
 - **On a unit in the world**: the same, when the game knows the unit by a token (your target, a nameplate,
   a group member).
-- **On the ground**: move the cursor onto a wedge, then click the wheel's middle. The ping lands where the
-  wheel opened. (A ping can only be sent at the cursor, so the sending click has to happen on that spot.)
+- **On the ground**: the ping lands where the wheel opened. (A ping can only be sent at the cursor, so the
+  sending click has to happen on that spot; the middle is that spot.)
 
 The right button, Escape, a click outside the wheel or six seconds of nothing close it. The middle with
 nothing chosen is Cancel.
@@ -36,8 +37,8 @@ to remove the unit's icon (the icon it already has also removes it when clicked 
 
 - triple or double click, left or right mouse button for pings (marking takes the other button)
 - the game's small wheel
-- "Send on wedge click": always send a ping as soon as a wedge is clicked. Faster, but a ground ping then
-  lands under the cursor rather than where the wheel opened
+- "Send on wedge click": send as soon as a wedge is clicked instead of returning to the middle. Faster,
+  but a ground ping then lands under the cursor rather than where the wheel opened
 - where the wheels work: open world, cities, dungeons, raids, battlegrounds, arenas; marking only in a group
 
 Slash commands for the same things: `/bpm clicks 2|3`, `button left|right`, `interval <seconds>`,

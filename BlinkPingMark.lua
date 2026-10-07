@@ -275,9 +275,9 @@ local function Layout(target)
     end
     for i = n + 1, #buttons do buttons[i]:Hide() end
     wheel.numWedges = n
-    -- a unit ping does not depend on the cursor's spot: the wedge click sends it. A ground ping
-    -- (@cursor or contextual) must be clicked at the wheel's middle.
-    wheel.sendOnWedge = db.quick or (target ~= nil and target ~= "cursor")
+    -- the same move for every target (user's choice): hover a wedge to choose it, click the middle to
+    -- send; only "quick" sends on the wedge click
+    wheel.sendOnWedge = db.quick and true or false
     local dead = math.sqrt(g.deadSq) * 2
     send:SetSize(dead, dead)
     send:EnableMouse(false)
