@@ -51,6 +51,16 @@ same way through the `/tm [@unit] <n>` macro command, because `SetRaidTarget` is
 Clicks are counted from the `GLOBAL_MOUSE_DOWN` event; a run of clicks restarts when the cursor moves, the
 pause is too long or the other button is used.
 
+## Development
+
+The logic can be exercised outside the game: `tools/wow_stub.lua` stands in for the WoW API and
+`tools/test.py` drives the addon through click runs, zone rules, wedge selection and the macros it builds.
+
+```bash
+pip install lupa
+python tools/test.py
+```
+
 ## Support
 
 If BlinkPingMark saves you some clicks, you can buy me a coffee:

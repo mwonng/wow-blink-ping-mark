@@ -26,7 +26,7 @@
 --   /bpm group           toggle "marking only in a group"
 --   /bpm test            open the wheel at the cursor
 
-local ADDON_NAME = ...
+local ADDON_NAME, ns = ...
 
 local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, quick = false, mark = true, groupOnly = true, debug = false,
                    zones = { world = true, city = true, dungeon = true, raid = true, battleground = true, arena = true } }
@@ -882,3 +882,17 @@ SlashCmdList.BLINKPINGMARK = function(msg)
     end
     panel.Refresh()
 end
+
+---------------------------------------------------------------------------
+-- Internals for the offline tests (tools/test.py); nothing in the game uses this table
+---------------------------------------------------------------------------
+ns.internals = {
+    ZoneKind = ZoneKind, Allowed = Allowed, Wedges = Wedges, TokenFor = TokenFor, Under = Under,
+    Open = Open, Close = Close, Layout = Layout, UpdateSelection = UpdateSelection,
+    wheel = wheel, buttons = buttons, send = send,
+    OpenMark = OpenMark, CloseMark = CloseMark, UpdateMark = UpdateMark, MarkButton = MarkButton,
+    mark = mark, markButtons = markButtons, events = events, panel = panel,
+    db = function() return db end,
+    state = function() return { hover = hover, armed = armed, markHover = markHover, clicks = clicks,
+                                firstKind = firstKind, firstUnit = firstUnit } end,
+}
