@@ -12,6 +12,8 @@
 -- wheel's middle, which is where the wheel opened. For a unit (frame or world unit) the spot does not
 -- matter, so clicking the wedge sends at once.
 -- Secure buttons cannot be shown or changed in combat, so the wheel only opens out of combat.
+-- The other mouse button, clicked the same way on a unit frame, opens a wheel of raid target icons for
+-- that unit (SetRaidTarget is not protected: plain buttons, works in combat too).
 -- Settings: Options -> AddOns -> EasyPing (clicks, mouse button, where it is active), or
 --   /easyping                 open the settings
 --   /easyping clicks 2|3      how many clicks open the wheel
@@ -19,11 +21,12 @@
 --   /easyping interval <s>    longest pause between clicks (default 0.4)
 --   /easyping small           toggle the small wheel
 --   /easyping quick           toggle: a wedge click always sends at once (ground pings land under the cursor)
+--   /easyping mark            toggle the mark wheel (other mouse button on unit frames)
 --   /easyping test            open the wheel at the cursor
 
 local ADDON_NAME = ...
 
-local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, quick = false, debug = false,
+local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, quick = false, mark = true, debug = false,
                    zones = { world = true, city = true, dungeon = true, raid = true, battleground = true, arena = true } }
 local db
 
@@ -387,9 +390,210 @@ wheel:SetScript("OnUpdate", function(self)
 end)
 
 ---------------------------------------------------------------------------
--- Click counting
+-- Mark wheel: the other mouse button on a unit frame; eight raid target icons, the same look.
+-- SetRaidTarget is not protected, so this is an ordinary frame and works in combat.
 ---------------------------------------------------------------------------
-local clicks, lastTime, lastX, lastY = 0, 0, 0, 0
+local MARKS = { "Star", "Circle", "Diamond", "Triangle", "Moon", "Square", "Cross", "Skull" }
+local RAID_ICONS = "Interface\\TargetingFrame\\UI-RaidTargetingIcons"
+
+local function MarkButton()
+    return db.button == "LeftButton" and "RightButton" or "LeftButton"
+end
+
+local mark = CreateFrame("Frame", "EasyPingMarkWheel", UIParent)
+mark:SetFrameStrata("DIALOG")
+mark:EnableMouse(true)
+mark:Hide()
+tinsert(UISpecialFrames, "EasyPingMarkWheel")
+mark.Background = mark:CreateTexture(nil, "BACKGROUND", nil, 1)
+mark.Background:SetPoint("CENTER")
+mark.Frame = mark:CreateTexture(nil, "OVERLAY", nil, 1)
+mark.Frame:SetPoint("CENTER")
+mark.Pointer = mark:CreateTexture(nil, "OVERLAY", nil, 2)
+mark.Pointer:SetPoint("CENTER")
+mark.CancelSelected = mark:CreateTexture(nil, "ARTWORK")
+mark.CancelSelected:SetPoint("CENTER")
+mark.CancelIcon = mark:CreateTexture(nil, "OVERLAY")
+mark.CancelIcon:SetPoint("CENTER")
+mark.Hint = mark:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+mark.Hint:SetPoint("TOP", mark, "BOTTOM", 0, -2)
+mark.wedges = {}
+local markHover -- wedge index, false for the middle, nil outside the ring
+
+local function CloseMark()
+    mark:Hide()
+end
+
+-- Blizzard's unit menu opens on the right button's mouse-up; close it so the clicks do not land in it
+local function CloseBlizzardMenus()
+    if Menu and Menu.GetManager then
+        pcall(function() Menu.GetManager():CloseMenus() end)
+    end
+    if CloseDropDownMenus then pcall(CloseDropDownMenus) end
+end
+
+local function MarkWedge(i)
+    local w = mark.wedges[i]
+    if w then return w end
+    w = {}
+    w.Selected = mark:CreateTexture(nil, "ARTWORK")
+    w.Glow = mark:CreateTexture(nil, "ARTWORK", nil, 1) -- fallback highlight when the 8-wedge atlas is missing
+    w.Glow:SetColorTexture(1, 1, 1, 0.25)
+    w.Icon = mark:CreateTexture(nil, "OVERLAY")
+    w.Icon:SetTexture(RAID_ICONS)
+    w.Text = mark:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    w.Text:SetJustifyH("CENTER")
+    mark.wedges[i] = w
+    return w
+end
+
+local function LayoutMark()
+    local g = GEOMETRY[db.small and "small" or "normal"]
+    local n = #MARKS
+    local atlases = HasAtlas("Radial_Wheel_BG" .. g.suffix)
+    local frameAtlas = ("Radial_Wheel_Frame_Count_%d"):format(n) .. g.suffix
+    local selectedAtlas = ("Radial_Wheel_Select_Wedge_Count_%d"):format(n) .. g.suffix
+    if atlases then
+        mark.Background:SetAtlas("Radial_Wheel_BG" .. g.suffix, true)
+        mark.Frame:SetShown(HasAtlas(frameAtlas))
+        if HasAtlas(frameAtlas) then mark.Frame:SetAtlas(frameAtlas, true) end
+        mark.Pointer:SetAtlas("Radial_Wheel_Select_Pointer" .. g.suffix, true)
+        mark.CancelSelected:SetAtlas("Radial_Wheel_Select_Close" .. g.suffix, true)
+        mark.CancelIcon:SetAtlas("Radial_Wheel_Icon_Close" .. g.suffix, true)
+        mark:SetSize(mark.Background:GetSize())
+    else
+        mark.Background:SetColorTexture(0, 0, 0, 0.6)
+        mark.Background:SetSize(g.fallbackSize, g.fallbackSize)
+        mark.Frame:Hide()
+        mark.Pointer:SetColorTexture(1, 0.82, 0, 0.9)
+        mark.Pointer:SetSize(6, 6)
+        mark.CancelSelected:SetColorTexture(1, 1, 1, 0.25)
+        mark.CancelSelected:SetSize(g.outer / 3, g.outer / 3)
+        mark.CancelIcon:SetColorTexture(0.8, 0.2, 0.2, 1)
+        mark.CancelIcon:SetSize(8, 8)
+        mark:SetSize(g.fallbackSize, g.fallbackSize)
+    end
+    mark.CancelSelected:Hide()
+    local hasSelected = atlases and HasAtlas(selectedAtlas)
+    local current = mark.unit and GetRaidTargetIndex(mark.unit) or 0
+    local iconSize = db.small and 18 or 30
+    local quarterPi = math.pi / 4
+    local interval = 2 * math.pi / n
+    local angle = math.pi / 2
+    for i = 1, n do
+        local w = MarkWedge(i)
+        local cx, cy = math.cos(angle), math.sin(angle)
+        w.Selected:ClearAllPoints()
+        if hasSelected then
+            w.Selected:SetAtlas(selectedAtlas, true)
+            w.Selected:SetRotation(angle)
+            w.Selected:SetPoint("CENTER", mark, "CENTER", cx * (g.icon + g.selected), cy * (g.icon + g.selected))
+        end
+        w.Selected:SetShown(false)
+        w.Glow:ClearAllPoints()
+        w.Glow:SetPoint("CENTER", mark, "CENTER", cx * g.icon, cy * g.icon)
+        w.Glow:SetSize(iconSize * 1.4, iconSize * 1.4)
+        w.Glow:Hide()
+        w.Icon:ClearAllPoints()
+        w.Icon:SetPoint("CENTER", mark, "CENTER", cx * g.icon, cy * g.icon)
+        local col, row = (i - 1) % 4, math.floor((i - 1) / 4)
+        w.Icon:SetTexCoord(col * 0.25, col * 0.25 + 0.25, row * 0.25, row * 0.25 + 0.25)
+        local size = i == current and iconSize * 1.3 or iconSize
+        w.Icon:SetSize(size, size)
+        w.Text:SetText(MARKS[i])
+        w.Text:SetTextColor(i == current and 0.3 or 1, 1, i == current and 0.3 or 1)
+        w.Text:ClearAllPoints()
+        if angle > quarterPi and angle <= math.pi - quarterPi then
+            w.Text:SetPoint("BOTTOM", w.Icon, "TOP", 0, 2)
+        elseif angle > math.pi - quarterPi and angle <= math.pi + quarterPi then
+            w.Text:SetPoint("RIGHT", w.Icon, "LEFT", -2, 0)
+        elseif angle > math.pi + quarterPi and angle <= 2 * math.pi - quarterPi then
+            w.Text:SetPoint("TOP", w.Icon, "BOTTOM", 0, -2)
+        else
+            w.Text:SetPoint("LEFT", w.Icon, "RIGHT", 2, 0)
+        end
+        w.Text:SetShown(not db.small)
+        angle = angle + interval
+    end
+    mark.hasSelected = hasSelected
+    markHover = nil
+end
+
+local function UpdateMark()
+    local g = GEOMETRY[db.small and "small" or "normal"]
+    local x, y = GetCursorPosition()
+    local scale = mark:GetEffectiveScale()
+    x, y = x / scale, y / scale
+    local cx, cy = mark:GetCenter()
+    if not cx then return end
+    local dx, dy = x - cx, y - cy
+    local distSq = dx * dx + dy * dy
+    local pick = false
+    if distSq > g.deadSq and distSq <= g.outer * g.outer then
+        local angle = math.atan2(dy, dx)
+        if angle < 0 then angle = angle + 2 * math.pi end
+        mark.Pointer:SetRotation(angle)
+        mark.Pointer:Show()
+        local n = #MARKS
+        local interval = 2 * math.pi / n
+        local a = angle - math.pi / 2 + interval / 2
+        if a < 0 then a = a + 2 * math.pi end
+        pick = math.floor(a / interval) + 1
+        if pick > n then pick = 1 end
+    else
+        mark.Pointer:Hide()
+        if distSq > g.outer * g.outer then pick = nil end
+    end
+    if pick == markHover then return end
+    markHover = pick
+    mark.CancelSelected:SetShown(pick == false)
+    for i, w in ipairs(mark.wedges) do
+        w.Selected:SetShown(mark.hasSelected and i == pick)
+        w.Glow:SetShown(not mark.hasSelected and i == pick)
+    end
+end
+
+local function OpenMark(unit)
+    if not (unit and UnitExists(unit)) then return end
+    if not db.zones[ZoneKind()] then return end
+    CloseBlizzardMenus()
+    mark.unit = unit
+    LayoutMark()
+    local x, y = GetCursorPosition()
+    local scale = UIParent:GetEffectiveScale()
+    mark:ClearAllPoints()
+    mark:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+    mark.Hint:SetText("Mark " .. (UnitName(unit) or unit))
+    mark.openedAt = GetTime()
+    mark:Show()
+    UpdateMark()
+    Debug("mark wheel opened for %s", unit)
+end
+
+mark:SetScript("OnMouseDown", function()
+    if markHover then
+        local unit = mark.unit
+        if unit and UnitExists(unit) then
+            local current = GetRaidTargetIndex(unit)
+            SetRaidTarget(unit, current == markHover and 0 or markHover) -- the same icon again clears it
+        end
+    end
+    CloseMark()
+end)
+
+mark:SetScript("OnUpdate", function(self)
+    local age = GetTime() - (self.openedAt or 0)
+    if age > 6 then return CloseMark() end
+    if age < 0.3 then CloseBlizzardMenus() end -- the menu from the last click's mouse-up
+    UpdateMark()
+end)
+
+---------------------------------------------------------------------------
+-- Click counting: the first click of a run decides what is under the cursor (later ones may land on
+-- a menu that the first one opened); the run restarts on a pause, a move or another button.
+---------------------------------------------------------------------------
+local clicks, lastTime, lastX, lastY, lastButton = 0, 0, 0, 0, nil
+local firstKind, firstUnit -- what the run's first click was on
 local MOVE = 16 -- screen pixels the cursor may drift between the clicks
 
 local function MouseFocus()
@@ -442,30 +646,32 @@ events:SetScript("OnEvent", function(_, event, arg)
     end
     -- GLOBAL_MOUSE_DOWN
     if not db then return end
-    if wheel:IsShown() then
-        -- any button outside the wheel closes it; clicks on the wheel are handled by its frame and buttons
-        if not wheel:IsMouseOver() then Close() end
+    if wheel:IsShown() or mark:IsShown() then
+        -- any button outside a wheel closes it; clicks on a wheel are handled by its frame and buttons
+        if wheel:IsShown() and not wheel:IsMouseOver() then Close() end
+        if mark:IsShown() and not mark:IsMouseOver() then CloseMark() end
         clicks = 0
         return
     end
-    if arg ~= db.button then
-        clicks = 0
-        return
-    end
-    local kind, unit = Under()
-    if not kind or not db.zones[ZoneKind()] then
+    local isPing = arg == db.button
+    local isMark = db.mark and arg == MarkButton()
+    if not (isPing or isMark) then
         clicks = 0
         return
     end
     local now = GetTime()
     local x, y = GetCursorPosition()
-    if now - lastTime > db.interval or math.abs(x - lastX) > MOVE or math.abs(y - lastY) > MOVE then
+    if arg ~= lastButton or now - lastTime > db.interval or math.abs(x - lastX) > MOVE or math.abs(y - lastY) > MOVE then
         clicks = 0
+        local kind, unit = Under()
+        if not kind or not db.zones[ZoneKind()] or (isMark and kind ~= "frame") then return end
+        firstKind, firstUnit = kind, unit
     end
-    clicks, lastTime, lastX, lastY = clicks + 1, now, x, y
+    clicks, lastTime, lastX, lastY, lastButton = clicks + 1, now, x, y, arg
+    if isMark and clicks > 1 then CloseBlizzardMenus() end -- the unit menu from the previous click
     if clicks >= db.clicks then
         clicks = 0
-        Open(kind, unit)
+        if isMark then OpenMark(firstUnit) else Open(firstKind, firstUnit) end
     end
 end)
 
@@ -562,6 +768,12 @@ CheckRow({ { key = "small", text = "Small wheel", tip = "The game's small radial
            { key = "quick", text = "Send on wedge click", tip = "Always send as soon as a wedge is clicked. Faster, but a ground ping then lands under the cursor, about 80 px from the wheel's middle, instead of where the wheel opened." } },
     function(k) return db[k] end, function(k, on) db[k] = on end)
 
+Header("Marking")
+Paragraph("The same clicks with the other mouse button on a unit frame open a wheel of raid target icons"
+    .. " for that unit. Clicking the icon the unit already has removes it. Works in combat.")
+CheckRow({ { key = "mark", text = "Mark wheel", tip = "Three (or two) clicks with the other mouse button on a unit frame." } },
+    function() return db.mark end, function(_, on) db.mark = on end)
+
 Header("Active in")
 CheckRow({
     { key = "world", text = "Open world" },
@@ -611,6 +823,9 @@ SlashCmdList.EASYPING = function(msg)
     elseif cmd == "small" then
         db.small = not db.small
         Print("%s wheel.", db.small and "small" or "normal")
+    elseif cmd == "mark" then
+        db.mark = not db.mark
+        Print("mark wheel %s.", db.mark and "on" or "off")
     elseif cmd == "quick" then
         db.quick = not db.quick
         Print("quick mode %s.", db.quick and "on: a wedge click sends at once, a ground ping lands under the cursor" or "off")
