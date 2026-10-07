@@ -820,6 +820,7 @@ end
 -- Slash commands
 ---------------------------------------------------------------------------
 SLASH_BLINKPINGMARK1 = "/bpm"
+SLASH_BLINKPINGMARK2 = "/blinkpingmark"
 SlashCmdList.BLINKPINGMARK = function(msg)
     local cmd, arg = (msg or ""):lower():match("^%s*(%S*)%s*(%S*)")
     if cmd == "clicks" and (arg == "2" or arg == "3") then

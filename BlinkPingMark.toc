@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: BlinkPingMark
 ## Category: Interface
-## Notes: Triple-click the left mouse button to open a ping wheel at the cursor (WoW Forever)
+## Notes: Triple-click to open a ping wheel at the cursor; the other mouse button on a unit frame opens a raid marker wheel (WoW Forever)
 ## Author: Michael
 ## Version: 0.0.1
 ## SavedVariables: BlinkPingMarkDB
