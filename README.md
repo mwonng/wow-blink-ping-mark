@@ -49,3 +49,9 @@ Addons may not call the ping API, so each wedge is a secure button running the g
 command, which the client resolves itself (`/ping [@unit] 1`, `/ping [@cursor] 2`, ...). Raid icons use
 `SetRaidTarget`, which addons may call. Clicks are counted from the `GLOBAL_MOUSE_DOWN` event; a run of
 clicks restarts when the cursor moves, the pause is too long or the other button is used.
+
+## Support
+
+If BlinkPingMark saves you some clicks, you can buy me a coffee:
+
+[![Buy me a coffee](https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=mdotwang&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff)](https://buymeacoffee.com/mdotwang)
