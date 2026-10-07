@@ -185,8 +185,9 @@ local function Layout(target)
         b.angle, b.name = angle, w.name
         local cx, cy = math.cos(angle), math.sin(angle)
         local selectedAtlas = ("Radial_Wheel_Select_Wedge_Count_%d"):format(n) .. g.suffix
+        -- Blizzard anchors the highlight `selected` px out from the wedge frame, which itself sits `icon` px out
         b.Selected:ClearAllPoints()
-        b.Selected:SetPoint("CENTER", wheel, "CENTER", cx * g.selected, cy * g.selected)
+        b.Selected:SetPoint("CENTER", wheel, "CENTER", cx * (g.icon + g.selected), cy * (g.icon + g.selected))
         if atlases and HasAtlas(selectedAtlas) then
             b.Selected:SetAtlas(selectedAtlas, true)
             b.Selected:SetRotation(angle)

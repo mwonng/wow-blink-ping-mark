@@ -38,7 +38,7 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
 - Wheel: `EasyPingWheel` (DIALOG strata, mouse-enabled: a click on it that is not on a wedge cancels) at the
   cursor, drawn with the game's radial wheel atlases (Blizzard_SharedXML/Blizzard_RadialWheel.lua, forever
   branch): Radial_Wheel_BG, Radial_Wheel_Frame_Count_<n>, Radial_Wheel_Select_Pointer (rotated to the cursor),
-  Radial_Wheel_Select_Wedge_Count_<n> (rotated to the wedge, 20 px out), Radial_Wheel_Select_Close +
+  Radial_Wheel_Select_Wedge_Count_<n> (rotated to the wedge, 100 px out = wedge frame 80 + 20), Radial_Wheel_Select_Close +
   Radial_Wheel_Icon_Close in the middle, Ping_Wheel_Icon_<kit> 80 px out, labels outside the icons; "_Small"
   variants (40/10 px, no labels) with db.small. Plain color shapes if the atlases are missing.
   Wedges start at the top and go counterclockwise, like Blizzard's. Selection by the cursor's angle and
