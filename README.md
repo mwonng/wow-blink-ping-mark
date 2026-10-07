@@ -61,6 +61,13 @@ pip install lupa
 python tools/test.py
 ```
 
+### Releasing
+
+CurseForge needs a zip whose top-level folder is `BlinkPingMark` (matching `BlinkPingMark.toc`); GitHub's
+own source archives are named after the repository and the tag, so they are rejected. Tag a version
+(`git tag v0.1.2 && git push --tags`) and the Release workflow attaches `BlinkPingMark-0.1.2.zip` to the
+GitHub release; or build it locally with `python tools/package.py` (into `dist/`) and upload that file.
+
 ## Support
 
 If BlinkPingMark saves you some clicks, you can buy me a coffee:
