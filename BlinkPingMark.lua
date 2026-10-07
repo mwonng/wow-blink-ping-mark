@@ -442,7 +442,17 @@ local function CloseMark()
     end
     mark:Hide()
 end
-mark:SetScript("OnMouseDown", CloseMark) -- a click that no wedge button took: the middle or the ring's outside
+mark:SetScript("OnMouseDown", CloseMark) -- a click that no wedge button took: the ring's outside
+
+-- the middle of the mark wheel removes the unit's icon ("/tm [@unit] 0"); cancelling is a click outside
+local markClear = CreateFrame("Button", "BlinkPingMarkMarkClear", mark, "SecureActionButtonTemplate")
+markClear:SetPoint("CENTER")
+markClear:SetFrameLevel(mark:GetFrameLevel() + 3)
+markClear:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+markClear:SetAttribute("useOnKeyDown", false)
+markClear:SetAttribute("type1", "macro")
+markClear:EnableMouse(false)
+markClear:HookScript("OnClick", CloseMark)
 
 local function MarkButton_(i)
     local b = markButtons[i]
@@ -590,6 +600,8 @@ local function UpdateMark()
     markHover = pick
     mark.CancelSelected:SetShown(pick == false)
     local canChange = not InCombatLockdown()
+    if canChange then markClear:EnableMouse(pick == false) end
+    mark.Hint:SetText(pick == false and "Click to remove the mark" or ("Mark " .. (mark.unitName or "")))
     for i, w in ipairs(mark.wedges) do
         w.Selected:SetShown(mark.hasSelected and i == pick)
         w.Glow:SetShown(not mark.hasSelected and i == pick)
@@ -611,7 +623,12 @@ local function OpenMark(unit)
     local scale = UIParent:GetEffectiveScale()
     mark:ClearAllPoints()
     mark:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
-    mark.Hint:SetText("Mark " .. (UnitName(unit) or unit))
+    mark.unitName = UnitName(unit) or unit
+    mark.Hint:SetText("Mark " .. mark.unitName)
+    markClear:SetAttribute("macrotext1", string.format("/tm [@%s] 0", unit))
+    local dead = math.sqrt(GEOMETRY[db.small and "small" or "normal"].deadSq) * 2
+    markClear:SetSize(dead, dead)
+    markClear:EnableMouse(false)
     mark.openedAt = GetTime()
     mark:SetAlpha(1)
     mark:Show()

@@ -308,9 +308,17 @@ class MarkWheel(Base):
         self.assertEqual(list(self.stub.macros.values()), ["/tm [@target] 8"])
         self.assertFalse(self.I.mark.IsShown(self.I.mark))
 
-    def test_middle_cancels(self):
-        self.open_on("target")
+    def test_middle_removes_the_mark(self):
+        self.open_on("target", icon=3)
         self.stub.cursor[1], self.stub.cursor[2] = 403, 300
+        self.I.UpdateMark()
+        self.click()
+        self.assertEqual(list(self.stub.macros.values()), ["/tm [@target] 0"])
+        self.assertFalse(self.I.mark.IsShown(self.I.mark))
+
+    def test_outside_the_ring_cancels(self):
+        self.open_on("target")
+        self.stub.cursor[1], self.stub.cursor[2] = 400 + 120, 300 + 120  # inside the frame, outside the ring
         self.I.UpdateMark()
         self.click()
         self.assertFalse(self.I.mark.IsShown(self.I.mark))

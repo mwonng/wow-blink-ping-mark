@@ -27,8 +27,8 @@ have spare, such as the middle button.
 ## Marking
 
 Triple-click the **other** mouse button on a unit frame, or on a unit in the world, to open the marker wheel: Star, Circle, Diamond,
-Triangle, Moon, Square, Cross, Skull. Click a wedge to put that icon on the unit; click the icon the unit
-already has to remove it. Like the ping wheel it opens out of combat only.
+Triangle, Moon, Square, Cross, Skull. Click a wedge to put that icon on the unit; click the middle of the wheel
+to remove the unit's icon (the icon it already has also removes it when clicked again). Like the ping wheel it opens out of combat only.
 
 ## Settings
 
