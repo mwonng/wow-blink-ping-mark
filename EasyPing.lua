@@ -7,16 +7,36 @@
 --                                nameplate, party, raid...), else a contextual ping at the cursor
 --   clicked on the ground     -> the spot under the cursor  /ping [@cursor] <type>
 -- Secure buttons cannot be shown or changed in combat, so the wheel only opens out of combat.
---   /easyping                 settings
+-- Settings: Options -> AddOns -> EasyPing (clicks, mouse button, where it is active), or
+--   /easyping                 open the settings
 --   /easyping clicks 2|3      how many clicks open the wheel
+--   /easyping button left|right
 --   /easyping interval <s>    longest pause between clicks (default 0.4)
 --   /easyping size <px>       icon size (default 28)
 --   /easyping test            open the wheel at the cursor
 
 local ADDON_NAME = ...
 
-local DEFAULTS = { clicks = 3, interval = 0.4, size = 28, radius = 34, debug = false }
+local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, size = 28, radius = 34, debug = false,
+                   zones = { world = true, city = true, dungeon = true, raid = true, battleground = true, arena = true } }
 local db
+
+-- Where the player is: one of the keys of db.zones
+local CITY_MAPS = { -- Classic capitals (uiMapID)
+    [1453] = true, [1455] = true, [1457] = true, -- Stormwind, Ironforge, Darnassus
+    [1454] = true, [1456] = true, [1458] = true, -- Orgrimmar, Thunder Bluff, Undercity
+}
+local function ZoneKind()
+    local _, instanceType = IsInInstance()
+    if instanceType == "party" or instanceType == "scenario" then return "dungeon" end
+    if instanceType == "raid" then return "raid" end
+    if instanceType == "pvp" then return "battleground" end
+    if instanceType == "arena" then return "arena" end
+    local map = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+    if map and CITY_MAPS[map] then return "city" end
+    if GetZonePVPInfo and GetZonePVPInfo() == "sanctuary" then return "city" end
+    return "world"
+end
 
 local PREFIX = "|cff66ccffEasyPing|r: "
 local function Print(fmt, ...)
@@ -248,6 +268,9 @@ events:SetScript("OnEvent", function(_, event, arg)
             if EasyPingDB[k] == nil then EasyPingDB[k] = v end
         end
         db = EasyPingDB
+        for k, v in pairs(DEFAULTS.zones) do
+            if db.zones[k] == nil then db.zones[k] = v end
+        end
         return
     elseif event == "PLAYER_REGEN_ENABLED" then
         if hideWhenSafe then
@@ -258,7 +281,7 @@ events:SetScript("OnEvent", function(_, event, arg)
     end
     -- GLOBAL_MOUSE_DOWN
     if not db then return end
-    if arg ~= "LeftButton" then
+    if arg ~= db.button then
         clicks = 0
         return
     end
@@ -269,7 +292,7 @@ events:SetScript("OnEvent", function(_, event, arg)
         return
     end
     local kind, unit = Under()
-    if not kind then
+    if not kind or not db.zones[ZoneKind()] then
         clicks = 0
         return
     end
@@ -286,6 +309,125 @@ events:SetScript("OnEvent", function(_, event, arg)
 end)
 
 ---------------------------------------------------------------------------
+-- Settings panel (Options -> AddOns -> EasyPing)
+---------------------------------------------------------------------------
+local panel = CreateFrame("Frame")
+panel.name = "EasyPing"
+local category
+local refreshers = {}
+local PAD = 16
+local cursorY = -16
+
+local function Label(text, template, width)
+    local fs = panel:CreateFontString(nil, "ARTWORK", template or "GameFontHighlight")
+    fs:SetPoint("TOPLEFT", PAD, cursorY)
+    fs:SetJustifyH("LEFT")
+    if width then fs:SetWidth(width) end
+    fs:SetText(text)
+    return fs
+end
+
+local function Header(text, first)
+    if not first then
+        local line = panel:CreateTexture(nil, "ARTWORK")
+        line:SetColorTexture(1, 1, 1, 0.15)
+        line:SetHeight(1)
+        line:SetPoint("TOPLEFT", PAD, cursorY - 6)
+        line:SetPoint("TOPRIGHT", -PAD, cursorY - 6)
+        cursorY = cursorY - 14
+    end
+    Label(text, "GameFontNormalLarge")
+    cursorY = cursorY - 26
+end
+
+local function Paragraph(text)
+    local fs = Label(text, "GameFontHighlight", 600)
+    fs:SetWordWrap(true)
+    fs:SetSpacing(2)
+    cursorY = cursorY - fs:GetStringHeight() - 12
+end
+
+-- A row of check buttons. get(key) -> checked; set(key, checked)
+local function CheckRow(items, get, set)
+    local x = PAD
+    for _, item in ipairs(items) do
+        local c = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+        c:SetSize(26, 26)
+        c:SetPoint("TOPLEFT", x, cursorY + 2)
+        local l = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+        l:SetPoint("LEFT", c, "RIGHT", 2, 0)
+        l:SetText(item.text)
+        c:SetScript("OnClick", function(self)
+            set(item.key, self:GetChecked() and true or false)
+            panel.Refresh()
+        end)
+        if item.tip then
+            c:SetScript("OnEnter", function(self)
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetText(item.text)
+                GameTooltip:AddLine(item.tip, 1, 1, 1, true)
+                GameTooltip:Show()
+            end)
+            c:SetScript("OnLeave", GameTooltip_Hide)
+        end
+        refreshers[#refreshers + 1] = function() c:SetChecked(get(item.key)) end
+        x = x + 30 + l:GetStringWidth() + 24
+    end
+    cursorY = cursorY - 32
+end
+
+-- Exactly one of the items is on (radio behaviour with check buttons)
+local function RadioRow(items, key)
+    CheckRow(items, function(v) return db[key] == v end, function(v, on) if on then db[key] = v end end)
+end
+
+Label("EasyPing", "GameFontHighlightLarge")
+cursorY = cursorY - 30
+Paragraph("Click the mouse button several times on the same spot to open a ping wheel there."
+    .. " Pick a ping with the left mouse button; the right button, Escape or a click elsewhere closes the wheel."
+    .. " On a unit frame or a unit the ping goes to that unit, on the ground to the spot under the cursor."
+    .. " The wheel cannot open in combat (the game forbids addons to show the buttons then).")
+
+Header("Open the wheel with")
+RadioRow({ { key = 3, text = "Triple click", tip = "Three clicks within the interval, without moving the mouse." },
+           { key = 2, text = "Double click", tip = "Two clicks. Easier to trigger by accident while selecting targets." } },
+    "clicks")
+RadioRow({ { key = "LeftButton", text = "Left mouse button" },
+           { key = "RightButton", text = "Right mouse button", tip = "On unit frames the right button also opens the unit menu, which may interrupt the clicks." } },
+    "button")
+
+Header("Active in")
+CheckRow({
+    { key = "world", text = "Open world" },
+    { key = "city", text = "Cities", tip = "The capital cities and sanctuaries." },
+    { key = "dungeon", text = "Dungeons" },
+    { key = "raid", text = "Raids" },
+    { key = "battleground", text = "Battlegrounds" },
+    { key = "arena", text = "Arenas" },
+}, function(k) return db.zones[k] end, function(k, on) db.zones[k] = on end)
+
+function panel.Refresh()
+    if not db then return end
+    for _, fn in ipairs(refreshers) do fn() end
+end
+panel:SetScript("OnShow", panel.Refresh)
+
+if Settings and Settings.RegisterCanvasLayoutCategory then
+    category = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
+    Settings.RegisterAddOnCategory(category)
+elseif InterfaceOptions_AddCategory then
+    InterfaceOptions_AddCategory(panel)
+end
+
+local function OpenPanel()
+    if category and Settings.OpenToCategory then
+        Settings.OpenToCategory(category:GetID())
+    elseif InterfaceOptionsFrame_OpenToCategory then
+        InterfaceOptionsFrame_OpenToCategory(panel)
+    end
+end
+
+---------------------------------------------------------------------------
 -- Slash commands
 ---------------------------------------------------------------------------
 SLASH_EASYPING1 = "/easyping"
@@ -294,6 +436,9 @@ SlashCmdList.EASYPING = function(msg)
     if cmd == "clicks" and (arg == "2" or arg == "3") then
         db.clicks = tonumber(arg)
         Print("%d clicks open the wheel.", db.clicks)
+    elseif cmd == "button" and (arg == "left" or arg == "right") then
+        db.button = arg == "left" and "LeftButton" or "RightButton"
+        Print("%s mouse button.", arg)
     elseif cmd == "interval" and tonumber(arg) then
         db.interval = math.max(0.15, math.min(1.5, tonumber(arg)))
         Print("clicks may be %.2f s apart.", db.interval)
@@ -307,7 +452,8 @@ SlashCmdList.EASYPING = function(msg)
     elseif cmd == "test" then
         Open("world")
     else
-        Print("%d clicks within %.2f s open the wheel; icons %d px.", db.clicks, db.interval, db.size)
-        Print("/easyping clicks 2|3, interval <seconds>, size <px>, test, debug")
+        OpenPanel()
+        return
     end
+    panel.Refresh()
 end

@@ -38,7 +38,14 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
 - Wheel: `EasyPingWheel` (DIALOG strata) at the cursor, buttons `EasyPingButton<i>` (SecureActionButtonTemplate,
   LeftButtonUp/RightButtonUp, useOnKeyDown false, type1 macro) placed clockwise from the top at db.radius;
   left click pings and closes (OnClick post-hook), right click just closes, clicking elsewhere or 6 s closes.
-- `/easyping`: clicks 2|3, interval <s>, size <px> (radius = size + 6), test, debug (prints the chosen target).
+- Settings panel (Options -> AddOns -> EasyPing; canvas category like PolyChat, own check buttons with tooltips,
+  radio rows = check buttons where exactly one is on): description paragraph, "Open the wheel with" (triple /
+  double click; left / right mouse button, db.button = "LeftButton"/"RightButton"), "Active in" check boxes
+  db.zones[world|city|dungeon|raid|battleground|arena]. ZoneKind(): IsInInstance type party/scenario -> dungeon,
+  raid, pvp -> battleground, arena; else Classic capital uiMapIDs (1453-1458) or GetZonePVPInfo "sanctuary" ->
+  city; else world. Checked on every counted click.
+- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `size <px>` (radius = size + 6),
+  `test`, `debug` (prints the chosen target) still work.
 
 ## Open items
 - Not yet tested in game: whether `/ping` works from macrotext (Comms Wheel uses real macros), whether
