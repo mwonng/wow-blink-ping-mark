@@ -217,9 +217,24 @@ function UnitGUID(token) return stub.units[token] and stub.units[token].guid end
 function UnitName(token) return stub.units[token] and stub.units[token].name end
 function GetRaidTargetIndex(token) return stub.units[token] and stub.units[token].icon end
 function GetMouseFoci() return { stub.focus } end
+-- Secret values: a table that errors when compared, like the game's secret values do. issecretvalue
+-- recognises it; rawequal compares identity, which is what the stub's unit functions use.
+local SecretMT = {
+    __eq = function() error("attempt to compare secret values") end,
+    __lt = function() error("attempt to compare secret values") end,
+    __le = function() error("attempt to compare secret values") end,
+    __concat = function() error("attempt to concatenate a secret value") end,
+}
+function stub.Secret(tag) return setmetatable({ __secret = true, tag = tag }, SecretMT) end
+function issecretvalue(v) return type(v) == "table" and rawget(v, "__secret") == true end
+
+-- Comparisons with "player" or "target" are permitted; others are secret when a secret unit is involved
 function UnitIsUnit(a, b)
     local ua, ub = stub.units[a], stub.units[b]
-    return ua ~= nil and ub ~= nil and ua.guid == ub.guid
+    if not (ua and ub) then return false end
+    local permitted = a == "player" or b == "player" or a == "target" or b == "target"
+    if not permitted and (issecretvalue(ua.guid) or issecretvalue(ub.guid)) then return stub.Secret("UnitIsUnit") end
+    return rawequal(ua.guid, ub.guid)
 end
 C_NamePlate = { GetNamePlateForUnit = function(unit)
     if stub.plateToken and stub.units[unit] then return { namePlateUnitToken = stub.plateToken } end

@@ -248,6 +248,36 @@ class PingWheel(Base):
         self.stub.plateToken = "nameplate7"
         self.assertEqual(self.I.TokenFor("mouseover"), "nameplate7")
 
+    # NPCs: their GUIDs are secret in this client, so nothing may compare them
+    def npc(self, token=None, plate=None):
+        guid = self.stub.Secret("npc")
+        self.stub.units.mouseover = self.lua.table(guid=guid, name="Boar")
+        if token:
+            self.stub.units[token] = self.lua.table(guid=guid, name="Boar")
+        self.stub.plateToken = plate
+        self.stub.focus = None
+
+    def test_npc_that_is_the_target(self):
+        self.npc(token="target")
+        self.assertEqual(self.I.TokenFor("mouseover"), "target")
+        for _ in range(3):
+            self.click()
+        self.assertEqual(self.wedge_macros(self.I.buttons, 4)[0], "/ping [@target] 1")
+
+    def test_npc_with_a_nameplate(self):
+        self.npc(plate="nameplate5")
+        self.stub.units.target = self.lua.table(guid="g-other", name="Someone else")
+        self.assertEqual(self.I.TokenFor("mouseover"), "nameplate5")
+
+    def test_npc_without_any_token_is_contextual(self):
+        self.npc()
+        self.stub.units.nameplate3 = self.lua.table(guid=self.stub.Secret("another"), name="Wolf")  # a secret neighbour
+        self.assertIsNone(self.I.TokenFor("mouseover"))
+        for _ in range(3):
+            self.click()
+        self.assertTrue(self.I.wheel.IsShown(self.I.wheel))
+        self.assertEqual(self.wedge_macros(self.I.buttons, 4)[0], "/ping 1")
+
     def test_world_unit_without_a_token_is_contextual(self):
         self.stub.units.mouseover = self.lua.table(guid="g-x", name="Stranger")
         self.stub.focus = None
@@ -317,6 +347,33 @@ class MarkWheel(Base):
         self.click()
         self.assertEqual(list(self.stub.macros.values()), ["/tm [@target] 8"])
         self.assertFalse(self.I.mark.IsShown(self.I.mark))
+
+    def test_mark_on_an_npc_with_a_nameplate(self):
+        guid = self.stub.Secret("npc")
+        self.stub.units.mouseover = self.lua.table(guid=guid, name="Boar")
+        self.stub.units.nameplate5 = self.lua.table(guid=guid, name="Boar")  # the plate's unit exists
+        self.stub.plateToken = "nameplate5"
+        self.stub.focus = None
+        for _ in range(3):
+            self.click("RightButton")
+        self.assertTrue(self.I.mark.IsShown(self.I.mark))
+        self.assertEqual(self.wedge_macros(self.I.markButtons, 8)[7], "/tm [@nameplate5] 8")
+
+    def test_mark_on_an_npc_without_a_token_does_not_open(self):
+        self.stub.units.mouseover = self.lua.table(guid=self.stub.Secret("npc"), name="Boar")
+        self.stub.focus = None
+        for _ in range(3):
+            self.click("RightButton")
+        self.assertFalse(self.I.mark.IsShown(self.I.mark))
+
+    def test_marked_unit_with_a_secret_index_opens(self):
+        self.stub.units.target = self.lua.table(guid="g-t", name="Boar", icon=self.stub.Secret("index"))
+        self.stub.focus = self.unit_frame("target")
+        self.stub.cursor[1], self.stub.cursor[2] = 400, 300
+        for _ in range(3):
+            self.click("RightButton")
+        self.assertTrue(self.I.mark.IsShown(self.I.mark))
+        self.assertEqual(self.wedge_macros(self.I.markButtons, 8)[4], "/tm [@target] 5")
 
     def test_middle_removes_the_mark(self):
         self.open_on("target", icon=3)
