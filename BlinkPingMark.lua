@@ -510,7 +510,10 @@ local function LayoutMark()
     end
     mark.CancelSelected:Hide()
     local hasSelected = atlases and HasAtlas(selectedAtlas)
+    -- the unit's current icon; in this client it can be a secret value, which cannot be compared, so
+    -- it then counts as "unknown" (no highlight, no clearing by clicking the same icon)
     local current = mark.unit and GetRaidTargetIndex(mark.unit) or 0
+    if issecretvalue and issecretvalue(current) then current = 0 end
     local iconSize = db.small and 18 or 30
     local quarterPi = math.pi / 4
     local interval = 2 * math.pi / n
