@@ -231,12 +231,22 @@ class PingWheel(Base):
     def test_world_unit_resolves_a_token(self):
         self.stub.units.mouseover = self.lua.table(guid="g-boar", name="Boar")
         self.stub.units.nameplate3 = self.lua.table(guid="g-boar", name="Boar")
-        self.assertEqual(self.I.TokenFor("g-boar"), "nameplate3")
+        self.assertEqual(self.I.TokenFor("mouseover"), "nameplate3")
         self.stub.focus = None
         for _ in range(3):
             self.click()
         self.assertEqual(self.wedge_macros(self.I.buttons, 4)[0], "/ping [@nameplate3] 1")
         self.assertTrue(self.I.wheel.sendOnWedge)
+
+    def test_world_unit_that_is_the_target(self):
+        self.stub.units.mouseover = self.lua.table(guid="g-boar", name="Boar")
+        self.stub.units.target = self.lua.table(guid="g-boar", name="Boar")
+        self.assertEqual(self.I.TokenFor("mouseover"), "target")
+
+    def test_world_unit_by_its_nameplate_frame(self):
+        self.stub.units.mouseover = self.lua.table(guid="secret", name="Boar")
+        self.stub.plateToken = "nameplate7"
+        self.assertEqual(self.I.TokenFor("mouseover"), "nameplate7")
 
     def test_world_unit_without_a_token_is_contextual(self):
         self.stub.units.mouseover = self.lua.table(guid="g-x", name="Stranger")

@@ -217,6 +217,13 @@ function UnitGUID(token) return stub.units[token] and stub.units[token].guid end
 function UnitName(token) return stub.units[token] and stub.units[token].name end
 function GetRaidTargetIndex(token) return stub.units[token] and stub.units[token].icon end
 function GetMouseFoci() return { stub.focus } end
+function UnitIsUnit(a, b)
+    local ua, ub = stub.units[a], stub.units[b]
+    return ua ~= nil and ub ~= nil and ua.guid == ub.guid
+end
+C_NamePlate = { GetNamePlateForUnit = function(unit)
+    if stub.plateToken and stub.units[unit] then return { namePlateUnitToken = stub.plateToken } end
+end }
 function date(fmt) return "00:00:00" end
 print = function(...)
     local parts = {}

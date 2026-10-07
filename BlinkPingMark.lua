@@ -358,10 +358,36 @@ for i = 1, 40 do TOKENS[#TOKENS + 1] = "nameplate" .. i end
 for i = 1, 40 do TOKENS[#TOKENS + 1] = "raid" .. i end
 for i = 1, 40 do TOKENS[#TOKENS + 1] = "raidpet" .. i end
 
-local function TokenFor(guid)
-    if not guid then return nil end
+local function IsSecret(v) return issecretvalue ~= nil and issecretvalue(v) end
+
+-- A stable token for the unit under the cursor. In this client the GUID of an NPC is a secret value
+-- that cannot be compared, so: the target (comparisons with "target" are always allowed), the unit's
+-- nameplate (its frame names its token), a plain GUID match, and finally UnitIsUnit where permitted.
+local function TokenFor(unit)
+    unit = unit or "mouseover"
+    if not UnitExists(unit) then return nil end
+    local ok, same = pcall(UnitIsUnit, unit, "target")
+    if ok and not IsSecret(same) and same then return "target" end
+    if C_NamePlate and C_NamePlate.GetNamePlateForUnit then
+        local okP, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
+        if okP and type(plate) == "table" and type(plate.namePlateUnitToken) == "string" then
+            return plate.namePlateUnitToken
+        end
+    end
+    local guid = UnitGUID(unit)
+    if guid and not IsSecret(guid) then
+        for _, token in ipairs(TOKENS) do
+            if UnitExists(token) then
+                local g = UnitGUID(token)
+                if g and not IsSecret(g) and g == guid then return token end
+            end
+        end
+    end
     for _, token in ipairs(TOKENS) do
-        if UnitExists(token) and UnitGUID(token) == guid then return token end
+        if UnitExists(token) then
+            local okU, s = pcall(UnitIsUnit, unit, token)
+            if okU and not IsSecret(s) and s then return token end
+        end
     end
 end
 
@@ -378,7 +404,7 @@ local function Open(kind, unit)
     if kind == "frame" then
         target = unit
     elseif UnitExists("mouseover") then
-        target = TokenFor(UnitGUID("mouseover"))
+        target = TokenFor("mouseover")
         Debug("world unit %s -> %s", tostring(UnitName("mouseover")), target or "contextual ping")
     else
         target = "cursor"
@@ -731,7 +757,7 @@ events:SetScript("OnEvent", function(_, event, arg)
             -- a unit frame gives its unit; a unit in the world is the one under the cursor, by a token
             -- that stays valid while the cursor sits on the wheel (target, nameplate, party...)
             local unit = firstKind == "frame" and firstUnit
-                or (UnitExists("mouseover") and TokenFor(UnitGUID("mouseover")))
+                or TokenFor("mouseover")
             if unit then OpenMark(unit) end
         else
             Open(firstKind, firstUnit)
