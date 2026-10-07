@@ -6,6 +6,11 @@
 --   clicked on a world unit   -> that unit, when the client has a unit token for it (target,
 --                                nameplate, party, raid...), else a contextual ping at the cursor
 --   clicked on the ground     -> the spot under the cursor  /ping [@cursor] <type>
+-- A ping made by a click lands where the cursor is at that click (the client hit-tests the cursor), so a
+-- ground ping cannot be sent by clicking a wedge 80 px away from the wheel's middle. For the ground the
+-- wedge is chosen by moving the cursor onto it (it stays selected) and the ping is sent by clicking the
+-- wheel's middle, which is where the wheel opened. For a unit (frame or world unit) the spot does not
+-- matter, so clicking the wedge sends at once.
 -- Secure buttons cannot be shown or changed in combat, so the wheel only opens out of combat.
 -- Settings: Options -> AddOns -> EasyPing (clicks, mouse button, where it is active), or
 --   /easyping                 open the settings
@@ -13,11 +18,12 @@
 --   /easyping button left|right
 --   /easyping interval <s>    longest pause between clicks (default 0.4)
 --   /easyping small           toggle the small wheel
+--   /easyping quick           toggle: a wedge click always sends at once (ground pings land under the cursor)
 --   /easyping test            open the wheel at the cursor
 
 local ADDON_NAME = ...
 
-local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, debug = false,
+local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, quick = false, debug = false,
                    zones = { world = true, city = true, dungeon = true, raid = true, battleground = true, arena = true } }
 local db
 
@@ -114,7 +120,21 @@ wheel.CancelIcon:SetPoint("CENTER")
 
 local buttons = {}
 local hideWhenSafe = false
-local selected -- wedge button under the cursor, or false for the cancel zone, or nil
+local hover -- wedge button under the cursor, false for the middle, nil outside the ring
+local armed -- the wedge last hovered: the middle sends it (ground pings)
+
+-- The middle: cancel, or "send the armed wedge" when the ping must be clicked at the wheel's middle
+local send = CreateFrame("Button", "EasyPingSend", wheel, "SecureActionButtonTemplate")
+send:SetPoint("CENTER")
+send:SetFrameLevel(wheel:GetFrameLevel() + 3)
+send:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+send:SetAttribute("useOnKeyDown", false)
+send:SetAttribute("type1", "macro")
+send:EnableMouse(false)
+send.Icon = send:CreateTexture(nil, "OVERLAY")
+send.Icon:SetPoint("CENTER")
+wheel.Hint = wheel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+wheel.Hint:SetPoint("TOP", wheel, "BOTTOM", 0, -2)
 
 local function Close()
     if not wheel:IsShown() then return end
@@ -125,7 +145,15 @@ local function Close()
     end
     wheel:Hide()
 end
-wheel:SetScript("OnMouseDown", Close)
+send:HookScript("OnClick", Close) -- runs after the secure action
+-- A click on the wheel that no secure button took: the middle with nothing armed, or the ring's outside,
+-- closes; a click on a wedge while the ground is the target only arms it (the middle sends)
+wheel:SetScript("OnMouseDown", function(_, button)
+    if button ~= db.button then return Close() end -- the other mouse button always closes
+    if hover == false and armed and not wheel.sendOnWedge then return end
+    if hover and not wheel.sendOnWedge then return end
+    Close()
+end)
 
 local function Button(i)
     local b = buttons[i]
@@ -233,7 +261,15 @@ local function Layout(target)
     end
     for i = n + 1, #buttons do buttons[i]:Hide() end
     wheel.numWedges = n
-    selected = nil
+    -- a unit ping does not depend on the cursor's spot: the wedge click sends it. A ground ping
+    -- (@cursor or contextual) must be clicked at the wheel's middle.
+    wheel.sendOnWedge = db.quick or (target ~= nil and target ~= "cursor")
+    local dead = math.sqrt(g.deadSq) * 2
+    send:SetSize(dead, dead)
+    send:EnableMouse(false)
+    send.Icon:Hide()
+    wheel.Hint:SetText(wheel.sendOnWedge and "" or "Move to a ping, then click the middle")
+    hover, armed = nil, nil
 end
 
 -- Which wedge (or the cancel zone) the cursor is on; mouse goes only to that wedge's secure button
@@ -266,14 +302,35 @@ local function UpdateSelection()
     else
         wheel.Pointer:Hide()
     end
-    if pick == selected then return end
-    selected = pick
+    if pick == hover then return end
+    hover = pick
+    if pick then armed = pick end -- a wedge stays chosen while the cursor goes back to the middle
+    local lit = wheel.sendOnWedge and pick or armed
     wheel.CancelSelected:SetShown(pick == false)
     for i = 1, (wheel.numWedges or 0) do
         local b = buttons[i]
-        b.Selected:SetShown(b == pick)
-        b:EnableMouse(b == pick)
+        b.Selected:SetShown(b == lit)
+        b:EnableMouse(wheel.sendOnWedge and b == pick)
     end
+    -- the middle sends the armed wedge (ground pings): its icon replaces the X
+    local sendNow = not wheel.sendOnWedge and armed ~= nil
+    if sendNow then
+        send:SetAttribute("macrotext1", armed:GetAttribute("macrotext1"))
+        local atlas = armed.Icon:IsShown() and armed.Icon:GetAtlas()
+        if atlas then
+            send.Icon:SetAtlas(atlas, true)
+            send.Icon:SetSize(send:GetWidth() * 0.8, send:GetHeight() * 0.8)
+            send.Icon:Show()
+        else
+            send.Icon:Hide()
+        end
+        wheel.CancelIcon:Hide()
+        wheel.Hint:SetText(pick == false and ("Click to ping: " .. (armed.name or "")) or "Move to a ping, then click the middle")
+    else
+        send.Icon:Hide()
+        wheel.CancelIcon:Show()
+    end
+    send:EnableMouse(sendNow and pick == false)
 end
 
 -- Unit tokens the client may hold for a unit the cursor is on (the "mouseover" token is gone once
@@ -488,8 +545,10 @@ end
 Label("EasyPing", "GameFontHighlightLarge")
 cursorY = cursorY - 30
 Paragraph("Click the mouse button several times on the same spot to open a ping wheel there."
-    .. " Pick a ping with the left mouse button; the right button, Escape or a click elsewhere closes the wheel."
-    .. " On a unit frame or a unit the ping goes to that unit, on the ground to the spot under the cursor."
+    .. " On a unit frame or a unit, click a wedge: the ping goes to that unit."
+    .. " On the ground, move the cursor onto a wedge and then click the wheel's middle: the ping lands where"
+    .. " the wheel opened (a ping can only be sent at the cursor, so it must be clicked there)."
+    .. " The right button, Escape or a click outside the wheel closes it."
     .. " The wheel cannot open in combat (the game forbids addons to show the buttons then).")
 
 Header("Open the wheel with")
@@ -499,8 +558,9 @@ RadioRow({ { key = 3, text = "Triple click", tip = "Three clicks within the inte
 RadioRow({ { key = "LeftButton", text = "Left mouse button" },
            { key = "RightButton", text = "Right mouse button", tip = "On unit frames the right button also opens the unit menu, which may interrupt the clicks." } },
     "button")
-CheckRow({ { key = "small", text = "Small wheel", tip = "The game's small radial wheel (half size, no labels)." } },
-    function() return db.small end, function(_, on) db.small = on end)
+CheckRow({ { key = "small", text = "Small wheel", tip = "The game's small radial wheel (half size, no labels)." },
+           { key = "quick", text = "Send on wedge click", tip = "Always send as soon as a wedge is clicked. Faster, but a ground ping then lands under the cursor, about 80 px from the wheel's middle, instead of where the wheel opened." } },
+    function(k) return db[k] end, function(k, on) db[k] = on end)
 
 Header("Active in")
 CheckRow({
@@ -551,6 +611,9 @@ SlashCmdList.EASYPING = function(msg)
     elseif cmd == "small" then
         db.small = not db.small
         Print("%s wheel.", db.small and "small" or "normal")
+    elseif cmd == "quick" then
+        db.quick = not db.quick
+        Print("quick mode %s.", db.quick and "on: a wedge click sends at once, a ground ping lands under the cursor" or "off")
     elseif cmd == "debug" then
         db.debug = not db.debug
         Print("debug %s.", db.debug and "on" or "off")

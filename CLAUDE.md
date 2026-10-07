@@ -45,15 +45,24 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
   distance from the center every frame (UpdateSelection): distance² <= 500 (150 small) = Cancel,
   > 128 px (64) = nothing; only the picked wedge's secure button (`EasyPingButton<i>`, SecureActionButtonTemplate
   covering the whole wheel, LeftButtonUp/RightButtonUp, useOnKeyDown false, type1 macro) has the mouse enabled,
-  so the click area is the real sector. Left click pings and closes (OnClick post-hook), right click, the
-  middle, the ring's outside, a click elsewhere, Escape or 6 s close it.
+  so the click area is the real sector.
+- Where a ping lands is where the cursor is when the secure button is clicked (the client hit-tests the
+  cursor; nothing lets an addon pass a point), so a ground ping cannot be sent from a wedge 80 px out.
+  Two modes decided per open (wheel.sendOnWedge): target is a unit token (frame / world unit) or db.quick ->
+  a wedge click sends at once; target is the ground (@cursor / contextual) -> hovering a wedge arms it
+  (highlight stays, `armed`), the middle becomes the secure button `EasyPingSend` (dead-zone size, macrotext
+  copied from the armed wedge, armed icon instead of the X, hint text under the wheel) and clicking it sends
+  at the wheel's middle = where it opened. Wheel OnMouseDown: the other mouse button closes; with the ground
+  target a click on a sector only arms; the middle with nothing armed and the ring's outside close.
+  A click outside the wheel (any button, GLOBAL_MOUSE_DOWN + IsMouseOver), Escape or 6 s close it.
+  Panel "Send on wedge click" = db.quick (ground pings then land under the cursor).
 - Settings panel (Options -> AddOns -> EasyPing; canvas category like PolyChat, own check buttons with tooltips,
   radio rows = check buttons where exactly one is on): description paragraph, "Open the wheel with" (triple /
   double click; left / right mouse button, db.button = "LeftButton"/"RightButton"; "Small wheel" = db.small), "Active in" check boxes
   db.zones[world|city|dungeon|raid|battleground|arena]. ZoneKind(): IsInInstance type party/scenario -> dungeon,
   raid, pvp -> battleground, arena; else Classic capital uiMapIDs (1453-1458) or GetZonePVPInfo "sanctuary" ->
   city; else world. Checked on every counted click.
-- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`,
+- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`, `quick`,
   `test`, `debug` (prints the chosen target) still work.
 
 ## Open items
