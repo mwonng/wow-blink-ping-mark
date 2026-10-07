@@ -56,13 +56,24 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
   target a click on a sector only arms; the middle with nothing armed and the ring's outside close.
   A click outside the wheel (any button, GLOBAL_MOUSE_DOWN + IsMouseOver), Escape or 6 s close it.
   Panel "Send on wedge click" = db.quick (ground pings then land under the cursor).
+- Mark wheel (db.mark, default on): the OTHER mouse button (MarkButton()), same click count, on a unit frame
+  only, opens `EasyPingMarkWheel`: the same radial look with 8 raid target icons
+  (Interface\TargetingFrame\UI-RaidTargetingIcons, 4x4 cells, Star Circle Diamond Triangle Moon Square
+  Cross Skull from the top counterclockwise; Radial_Wheel_Frame/Select_Wedge_Count_8 when those atlases
+  exist, else no frame art and a plain glow). SetRaidTarget is not protected: an ordinary frame, works in
+  combat; the unit's current icon is drawn bigger with a green label and clicking it again clears it.
+  The right button's mouse-up opens Blizzard's unit menu, so the click run closes it
+  (Menu.GetManager():CloseMenus(), CloseDropDownMenus) on every click after the first and for 0.3 s after
+  the wheel opens.
+- Click runs: the first click decides what is under the cursor (firstKind/firstUnit; later clicks may land
+  on the menu the first one opened); a run restarts on another button, a pause > interval or a move > 16 px.
 - Settings panel (Options -> AddOns -> EasyPing; canvas category like PolyChat, own check buttons with tooltips,
   radio rows = check buttons where exactly one is on): description paragraph, "Open the wheel with" (triple /
-  double click; left / right mouse button, db.button = "LeftButton"/"RightButton"; "Small wheel" = db.small), "Active in" check boxes
+  double click; left / right mouse button, db.button = "LeftButton"/"RightButton"; "Small wheel" = db.small), "Marking" (db.mark), "Active in" check boxes
   db.zones[world|city|dungeon|raid|battleground|arena]. ZoneKind(): IsInInstance type party/scenario -> dungeon,
   raid, pvp -> battleground, arena; else Classic capital uiMapIDs (1453-1458) or GetZonePVPInfo "sanctuary" ->
   city; else world. Checked on every counted click.
-- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`, `quick`,
+- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`, `quick`, `mark`,
   `test`, `debug` (prints the chosen target) still work.
 
 ## Open items
