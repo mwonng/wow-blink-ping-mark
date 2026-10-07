@@ -22,11 +22,12 @@
 --   /easyping small           toggle the small wheel
 --   /easyping quick           toggle: a wedge click always sends at once (ground pings land under the cursor)
 --   /easyping mark            toggle the mark wheel (other mouse button on unit frames)
+--   /easyping group           toggle "only in a group"
 --   /easyping test            open the wheel at the cursor
 
 local ADDON_NAME = ...
 
-local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, quick = false, mark = true, debug = false,
+local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, quick = false, mark = true, groupOnly = true, debug = false,
                    zones = { world = true, city = true, dungeon = true, raid = true, battleground = true, arena = true } }
 local db
 
@@ -35,7 +36,15 @@ local CITY_MAPS = { -- Classic capitals (uiMapID)
     [1453] = true, [1455] = true, [1457] = true, -- Stormwind, Ironforge, Darnassus
     [1454] = true, [1456] = true, [1458] = true, -- Orgrimmar, Thunder Bluff, Undercity
 }
-local function ZoneKind()
+local ZoneKind
+
+-- Pings and raid icons are for a group: with db.groupOnly nothing opens while solo
+local function Allowed()
+    if db.groupOnly and not IsInGroup() then return false end
+    return db.zones[ZoneKind()]
+end
+
+function ZoneKind()
     local _, instanceType = IsInInstance()
     if instanceType == "party" or instanceType == "scenario" then return "dungeon" end
     if instanceType == "raid" then return "raid" end
@@ -555,7 +564,7 @@ end
 
 local function OpenMark(unit)
     if not (unit and UnitExists(unit)) then return end
-    if not db.zones[ZoneKind()] then return end
+    if not Allowed() then return end
     CloseBlizzardMenus()
     mark.unit = unit
     LayoutMark()
@@ -664,7 +673,7 @@ events:SetScript("OnEvent", function(_, event, arg)
     if arg ~= lastButton or now - lastTime > db.interval or math.abs(x - lastX) > MOVE or math.abs(y - lastY) > MOVE then
         clicks = 0
         local kind, unit = Under()
-        if not kind or not db.zones[ZoneKind()] or (isMark and kind ~= "frame") then return end
+        if not kind or not Allowed() or (isMark and kind ~= "frame") then return end
         firstKind, firstUnit = kind, unit
     end
     clicks, lastTime, lastX, lastY, lastButton = clicks + 1, now, x, y, arg
@@ -775,6 +784,8 @@ CheckRow({ { key = "mark", text = "Mark wheel", tip = "Three (or two) clicks wit
     function() return db.mark end, function(_, on) db.mark = on end)
 
 Header("Active in")
+CheckRow({ { key = "groupOnly", text = "Only in a group", tip = "Pings and raid icons are seen by the group. Unticked, the wheels also open while solo." } },
+    function() return db.groupOnly end, function(_, on) db.groupOnly = on end)
 CheckRow({
     { key = "world", text = "Open world" },
     { key = "city", text = "Cities", tip = "The capital cities and sanctuaries." },
@@ -823,6 +834,9 @@ SlashCmdList.EASYPING = function(msg)
     elseif cmd == "small" then
         db.small = not db.small
         Print("%s wheel.", db.small and "small" or "normal")
+    elseif cmd == "group" then
+        db.groupOnly = not db.groupOnly
+        Print("wheels %s.", db.groupOnly and "only in a group" or "also while solo")
     elseif cmd == "mark" then
         db.mark = not db.mark
         Print("mark wheel %s.", db.mark and "on" or "off")

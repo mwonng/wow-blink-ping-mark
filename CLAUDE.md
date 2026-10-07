@@ -72,8 +72,10 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
   double click; left / right mouse button, db.button = "LeftButton"/"RightButton"; "Small wheel" = db.small), "Marking" (db.mark), "Active in" check boxes
   db.zones[world|city|dungeon|raid|battleground|arena]. ZoneKind(): IsInInstance type party/scenario -> dungeon,
   raid, pvp -> battleground, arena; else Classic capital uiMapIDs (1453-1458) or GetZonePVPInfo "sanctuary" ->
-  city; else world. Checked on every counted click.
-- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`, `quick`, `mark`,
+  city; else world. Checked (Allowed()) when a click run starts and when the mark wheel opens, together
+  with db.groupOnly (default on): neither wheel opens while not in a group (panel "Only in a group",
+  `/easyping group`).
+- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`, `quick`, `mark`, `group`,
   `test`, `debug` (prints the chosen target) still work.
 
 ## Open items
