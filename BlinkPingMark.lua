@@ -1,5 +1,5 @@
--- EasyPing (WoW Forever / Retail API)
--- Click the left mouse button three times (or twice, see /easyping) on the same spot to open a ping
+-- BlinkPingMark (WoW Forever / Retail API)
+-- Click the left mouse button three times (or twice, see /bpm) on the same spot to open a ping
 -- wheel there, drawn with the game's own radial wheel art. Addons may not call the ping API, so each wheel button is a secure button running
 -- Blizzard's "/ping" macro command, which the client resolves itself:
 --   clicked on a unit frame   -> that frame's unit        /ping [@unit] <type>
@@ -14,16 +14,16 @@
 -- Secure buttons cannot be shown or changed in combat, so the wheel only opens out of combat.
 -- The other mouse button, clicked the same way on a unit frame, opens a wheel of raid target icons for
 -- that unit (SetRaidTarget is not protected: plain buttons, works in combat too).
--- Settings: Options -> AddOns -> EasyPing (clicks, mouse button, where it is active), or
---   /easyping                 open the settings
---   /easyping clicks 2|3      how many clicks open the wheel
---   /easyping button left|right
---   /easyping interval <s>    longest pause between clicks (default 0.4)
---   /easyping small           toggle the small wheel
---   /easyping quick           toggle: a wedge click always sends at once (ground pings land under the cursor)
---   /easyping mark            toggle the mark wheel (other mouse button on unit frames)
---   /easyping group           toggle "only in a group"
---   /easyping test            open the wheel at the cursor
+-- Settings: Options -> AddOns -> BlinkPingMark (clicks, mouse button, where it is active), or
+--   /bpm                 open the settings
+--   /bpm clicks 2|3      how many clicks open the wheel
+--   /bpm button left|right
+--   /bpm interval <s>    longest pause between clicks (default 0.4)
+--   /bpm small           toggle the small wheel
+--   /bpm quick           toggle: a wedge click always sends at once (ground pings land under the cursor)
+--   /bpm mark            toggle the mark wheel (other mouse button on unit frames)
+--   /bpm group           toggle "only in a group"
+--   /bpm test            open the wheel at the cursor
 
 local ADDON_NAME = ...
 
@@ -56,7 +56,7 @@ function ZoneKind()
     return "world"
 end
 
-local PREFIX = "|cff66ccffEasyPing|r: "
+local PREFIX = "|cff66ccffBlinkPingMark|r: "
 local function Print(fmt, ...)
     print(PREFIX .. (select("#", ...) > 0 and string.format(fmt, ...) or fmt))
 end
@@ -103,11 +103,11 @@ end
 -- the middle is Cancel, outside the ring is Cancel, and only the picked wedge's secure button takes the
 -- mouse (the others are mouse-disabled), so the hit area is the real sector, not a rectangle.
 ---------------------------------------------------------------------------
-local wheel = CreateFrame("Frame", "EasyPingWheel", UIParent)
+local wheel = CreateFrame("Frame", "BlinkPingMarkWheel", UIParent)
 wheel:SetFrameStrata("DIALOG")
 wheel:EnableMouse(true) -- a click that is not on a wedge lands here: cancel
 wheel:Hide()
-tinsert(UISpecialFrames, "EasyPingWheel") -- Escape closes it (from Blizzard's secure code, so also in combat)
+tinsert(UISpecialFrames, "BlinkPingMarkWheel") -- Escape closes it (from Blizzard's secure code, so also in combat)
 
 local function HasAtlas(name)
     return C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(name) ~= nil
@@ -136,7 +136,7 @@ local hover -- wedge button under the cursor, false for the middle, nil outside 
 local armed -- the wedge last hovered: the middle sends it (ground pings)
 
 -- The middle: cancel, or "send the armed wedge" when the ping must be clicked at the wheel's middle
-local send = CreateFrame("Button", "EasyPingSend", wheel, "SecureActionButtonTemplate")
+local send = CreateFrame("Button", "BlinkPingMarkSend", wheel, "SecureActionButtonTemplate")
 send:SetPoint("CENTER")
 send:SetFrameLevel(wheel:GetFrameLevel() + 3)
 send:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -170,7 +170,7 @@ end)
 local function Button(i)
     local b = buttons[i]
     if b then return b end
-    b = CreateFrame("Button", "EasyPingButton" .. i, wheel, "SecureActionButtonTemplate")
+    b = CreateFrame("Button", "BlinkPingMarkButton" .. i, wheel, "SecureActionButtonTemplate")
     b:SetAllPoints(wheel) -- the sector is decided by angle, see UpdateSelection
     b:SetFrameLevel(wheel:GetFrameLevel() + 2)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
@@ -365,7 +365,7 @@ end
 
 local function Open(kind, unit)
     if InCombatLockdown() then
-        UIErrorsFrame:AddMessage("EasyPing: the ping wheel cannot open in combat", 1, 0.3, 0.3)
+        UIErrorsFrame:AddMessage("BlinkPingMark: the ping wheel cannot open in combat", 1, 0.3, 0.3)
         return
     end
     local ok, enabled = pcall(function() return C_Ping and C_Ping.IsPingSystemEnabled and C_Ping.IsPingSystemEnabled() end)
@@ -409,11 +409,11 @@ local function MarkButton()
     return db.button == "LeftButton" and "RightButton" or "LeftButton"
 end
 
-local mark = CreateFrame("Frame", "EasyPingMarkWheel", UIParent)
+local mark = CreateFrame("Frame", "BlinkPingMarkMarkWheel", UIParent)
 mark:SetFrameStrata("DIALOG")
 mark:EnableMouse(true)
 mark:Hide()
-tinsert(UISpecialFrames, "EasyPingMarkWheel")
+tinsert(UISpecialFrames, "BlinkPingMarkMarkWheel")
 mark.Background = mark:CreateTexture(nil, "BACKGROUND", nil, 1)
 mark.Background:SetPoint("CENTER")
 mark.Frame = mark:CreateTexture(nil, "OVERLAY", nil, 1)
@@ -637,11 +637,11 @@ pcall(events.RegisterEvent, events, "PLAYER_REGEN_ENABLED")
 events:SetScript("OnEvent", function(_, event, arg)
     if event == "ADDON_LOADED" then
         if arg ~= ADDON_NAME then return end
-        EasyPingDB = EasyPingDB or {}
+        BlinkPingMarkDB = BlinkPingMarkDB or {}
         for k, v in pairs(DEFAULTS) do
-            if EasyPingDB[k] == nil then EasyPingDB[k] = v end
+            if BlinkPingMarkDB[k] == nil then BlinkPingMarkDB[k] = v end
         end
-        db = EasyPingDB
+        db = BlinkPingMarkDB
         for k, v in pairs(DEFAULTS.zones) do
             if db.zones[k] == nil then db.zones[k] = v end
         end
@@ -685,10 +685,10 @@ events:SetScript("OnEvent", function(_, event, arg)
 end)
 
 ---------------------------------------------------------------------------
--- Settings panel (Options -> AddOns -> EasyPing)
+-- Settings panel (Options -> AddOns -> BlinkPingMark)
 ---------------------------------------------------------------------------
 local panel = CreateFrame("Frame")
-panel.name = "EasyPing"
+panel.name = "BlinkPingMark"
 local category
 local refreshers = {}
 local PAD = 16
@@ -757,7 +757,7 @@ local function RadioRow(items, key)
     CheckRow(items, function(v) return db[key] == v end, function(v, on) if on then db[key] = v end end)
 end
 
-Label("EasyPing", "GameFontHighlightLarge")
+Label("BlinkPingMark", "GameFontHighlightLarge")
 cursorY = cursorY - 30
 Paragraph("Click the mouse button several times on the same spot to open a ping wheel there."
     .. " On a unit frame or a unit, click a wedge: the ping goes to that unit."
@@ -819,8 +819,8 @@ end
 ---------------------------------------------------------------------------
 -- Slash commands
 ---------------------------------------------------------------------------
-SLASH_EASYPING1 = "/easyping"
-SlashCmdList.EASYPING = function(msg)
+SLASH_BLINKPINGMARK1 = "/bpm"
+SlashCmdList.BLINKPINGMARK = function(msg)
     local cmd, arg = (msg or ""):lower():match("^%s*(%S*)%s*(%S*)")
     if cmd == "clicks" and (arg == "2" or arg == "3") then
         db.clicks = tonumber(arg)
