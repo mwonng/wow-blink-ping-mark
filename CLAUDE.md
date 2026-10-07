@@ -35,18 +35,28 @@ edit files directly, user tests with `/reload`. Version stays 0.0.1 during devel
   contextual `/ping <n>` (hit test where the wheel button is: may miss small units); nothing -> `@cursor`.
   `@cursor` pings where the cursor is when the button is clicked, i.e. a wheel-radius (34 px) away from the
   click point; the white dot marks the click point.
-- Wheel: `EasyPingWheel` (DIALOG strata) at the cursor, buttons `EasyPingButton<i>` (SecureActionButtonTemplate,
-  LeftButtonUp/RightButtonUp, useOnKeyDown false, type1 macro) placed clockwise from the top at db.radius;
-  left click pings and closes (OnClick post-hook), right click just closes, clicking elsewhere or 6 s closes.
+- Wheel: `EasyPingWheel` (DIALOG strata, mouse-enabled: a click on it that is not on a wedge cancels) at the
+  cursor, drawn with the game's radial wheel atlases (Blizzard_SharedXML/Blizzard_RadialWheel.lua, forever
+  branch): Radial_Wheel_BG, Radial_Wheel_Frame_Count_<n>, Radial_Wheel_Select_Pointer (rotated to the cursor),
+  Radial_Wheel_Select_Wedge_Count_<n> (rotated to the wedge, 20 px out), Radial_Wheel_Select_Close +
+  Radial_Wheel_Icon_Close in the middle, Ping_Wheel_Icon_<kit> 80 px out, labels outside the icons; "_Small"
+  variants (40/10 px, no labels) with db.small. Plain color shapes if the atlases are missing.
+  Wedges start at the top and go counterclockwise, like Blizzard's. Selection by the cursor's angle and
+  distance from the center every frame (UpdateSelection): distance² <= 500 (150 small) = Cancel,
+  > 128 px (64) = nothing; only the picked wedge's secure button (`EasyPingButton<i>`, SecureActionButtonTemplate
+  covering the whole wheel, LeftButtonUp/RightButtonUp, useOnKeyDown false, type1 macro) has the mouse enabled,
+  so the click area is the real sector. Left click pings and closes (OnClick post-hook), right click, the
+  middle, the ring's outside, a click elsewhere, Escape or 6 s close it.
 - Settings panel (Options -> AddOns -> EasyPing; canvas category like PolyChat, own check buttons with tooltips,
   radio rows = check buttons where exactly one is on): description paragraph, "Open the wheel with" (triple /
-  double click; left / right mouse button, db.button = "LeftButton"/"RightButton"), "Active in" check boxes
+  double click; left / right mouse button, db.button = "LeftButton"/"RightButton"; "Small wheel" = db.small), "Active in" check boxes
   db.zones[world|city|dungeon|raid|battleground|arena]. ZoneKind(): IsInInstance type party/scenario -> dungeon,
   raid, pvp -> battleground, arena; else Classic capital uiMapIDs (1453-1458) or GetZonePVPInfo "sanctuary" ->
   city; else world. Checked on every counted click.
-- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `size <px>` (radius = size + 6),
+- `/easyping` opens the panel; `clicks 2|3`, `button left|right`, `interval <s>`, `small`,
   `test`, `debug` (prints the chosen target) still work.
 
 ## Open items
 - Not yet tested in game: whether `/ping` works from macrotext (Comms Wheel uses real macros), whether
-  `@cursor` pings land where expected, atlas names, GetMouseFoci on the world.
+  `@cursor` pings land where expected, the radial wheel / ping icon atlases, GetMouseFoci on the world,
+  EnableMouse gating of the secure buttons.

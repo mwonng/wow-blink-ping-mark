@@ -1,6 +1,6 @@
 -- EasyPing (WoW Forever / Retail API)
--- Click the left mouse button three times (or twice, see /easyping) on the same spot to open a small
--- ping wheel there. Addons may not call the ping API, so each wheel button is a secure button running
+-- Click the left mouse button three times (or twice, see /easyping) on the same spot to open a ping
+-- wheel there, drawn with the game's own radial wheel art. Addons may not call the ping API, so each wheel button is a secure button running
 -- Blizzard's "/ping" macro command, which the client resolves itself:
 --   clicked on a unit frame   -> that frame's unit        /ping [@unit] <type>
 --   clicked on a world unit   -> that unit, when the client has a unit token for it (target,
@@ -12,12 +12,12 @@
 --   /easyping clicks 2|3      how many clicks open the wheel
 --   /easyping button left|right
 --   /easyping interval <s>    longest pause between clicks (default 0.4)
---   /easyping size <px>       icon size (default 28)
+--   /easyping small           toggle the small wheel
 --   /easyping test            open the wheel at the cursor
 
 local ADDON_NAME = ...
 
-local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, size = 28, radius = 34, debug = false,
+local DEFAULTS = { clicks = 3, button = "LeftButton", interval = 0.4, small = false, debug = false,
                    zones = { world = true, city = true, dungeon = true, raid = true, battleground = true, arena = true } }
 local db
 
@@ -80,21 +80,41 @@ local function Wedges()
 end
 
 ---------------------------------------------------------------------------
--- Wheel: secure macro buttons around the click point
+-- Wheel: Blizzard's radial wheel look (atlases and geometry from Blizzard_SharedXML/Blizzard_RadialWheel.lua)
+-- with secure macro buttons. The cursor's angle from the center picks the wedge, like the game's wheel:
+-- the middle is Cancel, outside the ring is Cancel, and only the picked wedge's secure button takes the
+-- mouse (the others are mouse-disabled), so the hit area is the real sector, not a rectangle.
 ---------------------------------------------------------------------------
 local wheel = CreateFrame("Frame", "EasyPingWheel", UIParent)
 wheel:SetFrameStrata("DIALOG")
-wheel:SetSize(2, 2)
+wheel:EnableMouse(true) -- a click that is not on a wedge lands here: cancel
 wheel:Hide()
 tinsert(UISpecialFrames, "EasyPingWheel") -- Escape closes it (from Blizzard's secure code, so also in combat)
 
-wheel.spot = wheel:CreateTexture(nil, "OVERLAY")
-wheel.spot:SetSize(6, 6)
-wheel.spot:SetPoint("CENTER")
-wheel.spot:SetColorTexture(1, 1, 1, 0.9)
+local function HasAtlas(name)
+    return C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(name) ~= nil
+end
+
+-- Geometry per size (Blizzard: wedgeSpacing 80/40, selected 20/10, MinimumWedgeDistanceSquared 500/150)
+local GEOMETRY = {
+    normal = { suffix = "",       icon = 80, selected = 20, deadSq = 500, outer = 128, fallbackSize = 256 },
+    small  = { suffix = "_Small", icon = 40, selected = 10, deadSq = 150, outer = 64,  fallbackSize = 128 },
+}
+
+wheel.Background = wheel:CreateTexture(nil, "BACKGROUND", nil, 1)
+wheel.Background:SetPoint("CENTER")
+wheel.Frame = wheel:CreateTexture(nil, "OVERLAY", nil, 1)
+wheel.Frame:SetPoint("CENTER")
+wheel.Pointer = wheel:CreateTexture(nil, "OVERLAY", nil, 2)
+wheel.Pointer:SetPoint("CENTER")
+wheel.CancelSelected = wheel:CreateTexture(nil, "ARTWORK")
+wheel.CancelSelected:SetPoint("CENTER")
+wheel.CancelIcon = wheel:CreateTexture(nil, "OVERLAY")
+wheel.CancelIcon:SetPoint("CENTER")
 
 local buttons = {}
 local hideWhenSafe = false
+local selected -- wedge button under the cursor, or false for the cancel zone, or nil
 
 local function Close()
     if not wheel:IsShown() then return end
@@ -105,65 +125,154 @@ local function Close()
     end
     wheel:Hide()
 end
+wheel:SetScript("OnMouseDown", Close)
 
 local function Button(i)
     local b = buttons[i]
     if b then return b end
     b = CreateFrame("Button", "EasyPingButton" .. i, wheel, "SecureActionButtonTemplate")
+    b:SetAllPoints(wheel) -- the sector is decided by angle, see UpdateSelection
+    b:SetFrameLevel(wheel:GetFrameLevel() + 2)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:SetAttribute("useOnKeyDown", false) -- act on mouse up, whatever ActionButtonUseKeyDown says
     b:SetAttribute("type1", "macro")      -- left: /ping; right: no action, just close
-    b.bg = b:CreateTexture(nil, "BACKGROUND")
-    b.bg:SetAllPoints()
-    b.bg:SetColorTexture(0, 0, 0, 0.6)
-    b.icon = b:CreateTexture(nil, "ARTWORK")
-    b.icon:SetPoint("TOPLEFT", 2, -2)
-    b.icon:SetPoint("BOTTOMRIGHT", -2, 2)
-    b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    b.label:SetPoint("CENTER")
-    b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-    b:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(self.name or "Ping")
-        GameTooltip:Show()
-    end)
-    b:SetScript("OnLeave", GameTooltip_Hide)
+    b.Selected = b:CreateTexture(nil, "ARTWORK")
+    b.Selected:Hide()
+    b.Icon = b:CreateTexture(nil, "OVERLAY")
+    b.Text = b:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    b.Text:SetJustifyH("CENTER")
     b:HookScript("OnClick", Close) -- runs after the secure action
     buttons[i] = b
     return b
 end
 
--- Returns the icon setup for a wedge: atlas when the client has it, else a text label
-local function Decorate(b, w)
-    b.name = w.name
-    local atlas = w.kit and ("Ping_Wheel_Icon_" .. w.kit)
-    local info = atlas and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas)
-    if info then
-        b.icon:SetAtlas(atlas)
-        b.icon:Show()
-        b.label:SetText("")
-    else
-        b.icon:Hide()
-        b.label:SetText(w.name or "?")
-    end
-end
-
--- target: unit token, "cursor", or nil (contextual: whatever is under the cursor when clicked)
+-- Blizzard's wheel: first wedge at the top, then counterclockwise
 local function Layout(target)
     local wedges = Wedges()
-    local size, radius = db.size, db.radius
+    local g = GEOMETRY[db.small and "small" or "normal"]
+    local n = #wedges
+    local atlases = HasAtlas("Radial_Wheel_BG" .. g.suffix)
+    if atlases then
+        wheel.Background:SetAtlas("Radial_Wheel_BG" .. g.suffix, true)
+        wheel.Background:SetVertexColor(1, 1, 1)
+        local frameAtlas = ("Radial_Wheel_Frame_Count_%d"):format(n) .. g.suffix
+        wheel.Frame:SetAtlas(HasAtlas(frameAtlas) and frameAtlas or ("Radial_Wheel_Frame_Count_4" .. g.suffix), true)
+        wheel.Frame:Show()
+        wheel.Pointer:SetAtlas("Radial_Wheel_Select_Pointer" .. g.suffix, true)
+        wheel.CancelSelected:SetAtlas("Radial_Wheel_Select_Close" .. g.suffix, true)
+        wheel.CancelIcon:SetAtlas("Radial_Wheel_Icon_Close" .. g.suffix, true)
+        wheel:SetSize(wheel.Background:GetSize())
+    else
+        -- the client has no radial wheel art: plain shapes
+        wheel.Background:SetColorTexture(0, 0, 0, 0.6)
+        wheel.Background:SetSize(g.fallbackSize, g.fallbackSize)
+        wheel.Frame:Hide()
+        wheel.Pointer:SetColorTexture(1, 0.82, 0, 0.9)
+        wheel.Pointer:SetSize(6, 6)
+        wheel.CancelSelected:SetColorTexture(1, 1, 1, 0.25)
+        wheel.CancelSelected:SetSize(g.outer / 3, g.outer / 3)
+        wheel.CancelIcon:SetColorTexture(0.8, 0.2, 0.2, 1)
+        wheel.CancelIcon:SetSize(8, 8)
+        wheel:SetSize(g.fallbackSize, g.fallbackSize)
+    end
+    wheel.CancelSelected:Hide()
+
+    local quarterPi = math.pi / 4
+    local interval = 2 * math.pi / n
+    local angle = math.pi / 2
     for i, w in ipairs(wedges) do
         local b = Button(i)
-        b:SetSize(size, size)
-        local angle = math.rad(90 - (i - 1) * 360 / #wedges) -- first at the top, then clockwise
-        b:ClearAllPoints()
-        b:SetPoint("CENTER", wheel, "CENTER", math.cos(angle) * radius, math.sin(angle) * radius)
-        Decorate(b, w)
+        b.angle, b.name = angle, w.name
+        local cx, cy = math.cos(angle), math.sin(angle)
+        local selectedAtlas = ("Radial_Wheel_Select_Wedge_Count_%d"):format(n) .. g.suffix
+        b.Selected:ClearAllPoints()
+        b.Selected:SetPoint("CENTER", wheel, "CENTER", cx * g.selected, cy * g.selected)
+        if atlases and HasAtlas(selectedAtlas) then
+            b.Selected:SetAtlas(selectedAtlas, true)
+            b.Selected:SetRotation(angle)
+        else
+            b.Selected:SetColorTexture(1, 1, 1, 0.2)
+            b.Selected:SetSize(g.icon * 0.9, g.icon * 0.9)
+            b.Selected:SetRotation(0)
+            b.Selected:ClearAllPoints()
+            b.Selected:SetPoint("CENTER", wheel, "CENTER", cx * g.icon, cy * g.icon)
+        end
+        b.Icon:ClearAllPoints()
+        b.Icon:SetPoint("CENTER", wheel, "CENTER", cx * g.icon, cy * g.icon)
+        local iconAtlas = w.kit and ("Ping_Wheel_Icon_" .. w.kit .. g.suffix)
+        if iconAtlas and HasAtlas(iconAtlas) then
+            b.Icon:SetAtlas(iconAtlas, true)
+            b.Icon:Show()
+        elseif w.kit and HasAtlas("Ping_Wheel_Icon_" .. w.kit) then
+            b.Icon:SetAtlas("Ping_Wheel_Icon_" .. w.kit, true)
+            if db.small then b.Icon:SetSize(b.Icon:GetWidth() / 2, b.Icon:GetHeight() / 2) end
+            b.Icon:Show()
+        else
+            b.Icon:Hide()
+        end
+        -- text on the outside of the wedge, as in Blizzard's wheel
+        b.Text:SetText(w.name or "")
+        b.Text:ClearAllPoints()
+        if angle > quarterPi and angle <= math.pi - quarterPi then
+            b.Text:SetPoint("BOTTOM", b.Icon, "TOP", 0, 6)
+        elseif angle > math.pi - quarterPi and angle <= math.pi + quarterPi then
+            b.Text:SetPoint("RIGHT", b.Icon, "LEFT", -2, 0)
+        elseif angle > math.pi + quarterPi and angle <= 2 * math.pi - quarterPi then
+            b.Text:SetPoint("TOP", b.Icon, "BOTTOM", 0, -6)
+        else
+            b.Text:SetPoint("LEFT", b.Icon, "RIGHT", 2, 0)
+        end
+        b.Text:SetShown(not db.small)
+        b.Selected:Hide()
         local macro = target and string.format("/ping [@%s] %s", target, w.number) or ("/ping " .. w.number)
         b:SetAttribute("macrotext1", macro)
+        b:EnableMouse(false)
         b:Show()
+        angle = angle + interval
     end
-    for i = #wedges + 1, #buttons do buttons[i]:Hide() end
+    for i = n + 1, #buttons do buttons[i]:Hide() end
+    wheel.numWedges = n
+    selected = nil
+end
+
+-- Which wedge (or the cancel zone) the cursor is on; mouse goes only to that wedge's secure button
+local function UpdateSelection()
+    if InCombatLockdown() then return end -- secure buttons cannot change now; the wheel is on its way out
+    local g = GEOMETRY[db.small and "small" or "normal"]
+    local x, y = GetCursorPosition()
+    local scale = wheel:GetEffectiveScale()
+    x, y = x / scale, y / scale
+    local cx, cy = wheel:GetCenter()
+    if not cx then return end
+    local dx, dy = x - cx, y - cy
+    local distSq = dx * dx + dy * dy
+    local pick = false -- cancel
+    if distSq > g.deadSq and distSq <= g.outer * g.outer then
+        local angle = math.atan2(dy, dx)
+        if angle < 0 then angle = angle + 2 * math.pi end
+        wheel.Pointer:SetRotation(angle)
+        wheel.Pointer:Show()
+        -- wedges start at the top (pi/2) and go counterclockwise; each is centered on its angle
+        local interval = 2 * math.pi / (wheel.numWedges or 4)
+        local a = angle - math.pi / 2 + interval / 2
+        if a < 0 then a = a + 2 * math.pi end
+        local index = math.floor(a / interval) + 1
+        if index > (wheel.numWedges or 4) then index = 1 end
+        pick = buttons[index]
+    elseif distSq > g.outer * g.outer then
+        pick = nil -- outside: nothing highlighted, a click goes to the world or UI (handled elsewhere)
+        wheel.Pointer:Hide()
+    else
+        wheel.Pointer:Hide()
+    end
+    if pick == selected then return end
+    selected = pick
+    wheel.CancelSelected:SetShown(pick == false)
+    for i = 1, (wheel.numWedges or 0) do
+        local b = buttons[i]
+        b.Selected:SetShown(b == pick)
+        b:EnableMouse(b == pick)
+    end
 end
 
 -- Unit tokens the client may hold for a unit the cursor is on (the "mouseover" token is gone once
@@ -210,11 +319,13 @@ local function Open(kind, unit)
     wheel:SetAlpha(1)
     wheel.openedAt = GetTime()
     wheel:Show()
+    UpdateSelection()
     Debug("wheel opened: %s", target and ("@" .. target) or "contextual")
 end
 
 wheel:SetScript("OnUpdate", function(self)
-    if self.openedAt and GetTime() - self.openedAt > 6 then Close() end
+    if self.openedAt and GetTime() - self.openedAt > 6 then return Close() end
+    UpdateSelection()
 end)
 
 ---------------------------------------------------------------------------
@@ -395,6 +506,8 @@ RadioRow({ { key = 3, text = "Triple click", tip = "Three clicks within the inte
 RadioRow({ { key = "LeftButton", text = "Left mouse button" },
            { key = "RightButton", text = "Right mouse button", tip = "On unit frames the right button also opens the unit menu, which may interrupt the clicks." } },
     "button")
+CheckRow({ { key = "small", text = "Small wheel", tip = "The game's small radial wheel (half size, no labels)." } },
+    function() return db.small end, function(_, on) db.small = on end)
 
 Header("Active in")
 CheckRow({
@@ -442,10 +555,9 @@ SlashCmdList.EASYPING = function(msg)
     elseif cmd == "interval" and tonumber(arg) then
         db.interval = math.max(0.15, math.min(1.5, tonumber(arg)))
         Print("clicks may be %.2f s apart.", db.interval)
-    elseif cmd == "size" and tonumber(arg) then
-        db.size = math.max(16, math.min(64, math.floor(tonumber(arg))))
-        db.radius = db.size + 6
-        Print("icon size %d px.", db.size)
+    elseif cmd == "small" then
+        db.small = not db.small
+        Print("%s wheel.", db.small and "small" or "normal")
     elseif cmd == "debug" then
         db.debug = not db.debug
         Print("debug %s.", db.debug and "on" or "off")
