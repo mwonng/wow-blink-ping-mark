@@ -703,14 +703,22 @@ events:SetScript("OnEvent", function(_, event, arg)
     if arg ~= lastButton or now - lastTime > db.interval or math.abs(x - lastX) > MOVE or math.abs(y - lastY) > MOVE then
         clicks = 0
         local kind, unit = Under()
-        if not kind or not Allowed(isMark) or (isMark and kind ~= "frame") then return end
+        if not kind or not Allowed(isMark) then return end
         firstKind, firstUnit = kind, unit
     end
     clicks, lastTime, lastX, lastY, lastButton = clicks + 1, now, x, y, arg
     if isMark and clicks > 1 then CloseBlizzardMenus() end -- the unit menu from the previous click
     if clicks >= db.clicks then
         clicks = 0
-        if isMark then OpenMark(firstUnit) else Open(firstKind, firstUnit) end
+        if isMark then
+            -- a unit frame gives its unit; a unit in the world is the one under the cursor, by a token
+            -- that stays valid while the cursor sits on the wheel (target, nameplate, party...)
+            local unit = firstKind == "frame" and firstUnit
+                or (UnitExists("mouseover") and TokenFor(UnitGUID("mouseover")))
+            if unit then OpenMark(unit) end
+        else
+            Open(firstKind, firstUnit)
+        end
     end
 end)
 

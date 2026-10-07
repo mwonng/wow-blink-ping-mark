@@ -275,12 +275,21 @@ class MarkWheel(Base):
         self.assertTrue(self.I.mark.IsShown(self.I.mark))
         self.assertEqual(self.wedge_macros(self.I.markButtons, 8)[7], "/tm [@target] 8")
 
-    def test_not_on_the_world(self):
+    def test_not_on_empty_world(self):
         self.stub.focus = None
         for _ in range(3):
             self.click("RightButton")
         self.assertFalse(self.I.mark.IsShown(self.I.mark))
         self.assertFalse(self.I.wheel.IsShown(self.I.wheel))
+
+    def test_world_unit_under_the_cursor(self):
+        self.stub.units.mouseover = self.lua.table(guid="g-boar", name="Boar")
+        self.stub.units.nameplate2 = self.lua.table(guid="g-boar", name="Boar")
+        self.stub.focus = None
+        for _ in range(3):
+            self.click("RightButton")
+        self.assertTrue(self.I.mark.IsShown(self.I.mark))
+        self.assertEqual(self.wedge_macros(self.I.markButtons, 8)[7], "/tm [@nameplate2] 8")
 
     def test_current_icon_clears(self):
         self.open_on("target", icon=5)
