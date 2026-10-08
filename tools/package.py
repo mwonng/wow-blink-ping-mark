@@ -14,7 +14,7 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NAME = "BlinkPingMark"
-FILES = ["BlinkPingMark.toc", "BlinkPingMark.lua", "icon.tga", "README.md"]
+FILES = ["BlinkPingMark.toc", "BlinkPingMark.lua", "icon.tga", "README.md", "CHANGELOG.md"]
 
 
 def version():
