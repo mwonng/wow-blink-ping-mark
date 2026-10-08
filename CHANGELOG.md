@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.2 — 2026-10-08
+## 0.1.3 — 2026-10-08
 
 - Ping wheel: the same move for every target. Move the cursor onto a wedge to choose the ping, then
   click the wheel's middle to send it, for units as well as for the ground. "Send on wedge click" keeps
@@ -13,9 +13,12 @@
 - Mark wheel: the middle removes the unit's icon.
 - Mark wheel: a unit that already has an icon no longer errors when the wheel opens (its icon index can
   be a secret value).
+- Tests: the offline stub has secret values, with cases for NPCs on both wheels.
+
+## 0.1.2 — 2026-10-08
+
 - Releases: the zip has a top-level `BlinkPingMark` folder, as CurseForge requires; the Release workflow
   attaches it to tagged GitHub releases.
-- Tests: the offline stub has secret values, with cases for NPCs on both wheels.
 
 ## 0.1.1 — 2026-10-07
 
