@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- CurseForge automatic packaging (`.pkgmeta`): every pushed tag is packaged by CurseForge itself, with
+  `CHANGELOG.md` as the changelog, once the repository's webhook is set up (see README, Releasing).
+
 ## 0.1.3 — 2026-10-08
 
 - Ping wheel: the same move for every target. Move the cursor onto a wedge to choose the ping, then

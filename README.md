@@ -64,10 +64,19 @@ python tools/test.py
 
 ### Releasing
 
-CurseForge needs a zip whose top-level folder is `BlinkPingMark` (matching `BlinkPingMark.toc`); GitHub's
-own source archives are named after the repository and the tag, so they are rejected. Tag a version
-(`git tag v0.1.2 && git push --tags`) and the Release workflow attaches `BlinkPingMark-0.1.2.zip` to the
-GitHub release; or build it locally with `python tools/package.py` (into `dist/`) and upload that file.
+Tag a version (`git tag v0.1.4 && git push --tags`) and two things happen:
+
+- The GitHub Release workflow builds `BlinkPingMark-0.1.4.zip` (a zip whose top-level folder is
+  `BlinkPingMark`, matching the .toc) and attaches it to the GitHub release. `python tools/package.py`
+  builds the same zip locally into `dist/`.
+- CurseForge packages the tag itself through its automatic packaging, configured by `.pkgmeta`
+  (package name, `CHANGELOG.md` as the changelog, `tools/` and `dist/` left out). A tag whose name
+  contains `alpha` or `beta` becomes an alpha or beta file; any other tag a release.
+
+Automatic packaging needs a one-time webhook on the GitHub repository: create an API token on
+CurseForge (account → API tokens), then add a webhook under the repository's Settings → Webhooks with the
+payload URL `https://www.curseforge.com/api/projects/<projectID>/package?token=<token>` (project ID from
+the project's Overview page, "About This Project"), the other settings left at their defaults.
 
 ## Support
 
