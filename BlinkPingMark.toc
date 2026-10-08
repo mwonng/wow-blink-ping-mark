@@ -4,7 +4,7 @@
 ## IconTexture: Interface\AddOns\BlinkPingMark\icon
 ## Notes: Triple-click to open a ping wheel at the cursor; the other mouse button on a unit frame opens a raid marker wheel (WoW Forever)
 ## Author: Michael
-## Version: 0.1.3
+## Version: 0.1.4
 ## SavedVariables: BlinkPingMarkDB
 
 BlinkPingMark.lua

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.4 — 2026-10-08
 
 - CurseForge automatic packaging (`.pkgmeta`): every pushed tag is packaged by CurseForge itself, with
   `CHANGELOG.md` as the changelog, once the repository's webhook is set up (see README, Releasing).
