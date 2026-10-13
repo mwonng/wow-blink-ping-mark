@@ -692,11 +692,15 @@ local function Under()
     if not focus or focus == WorldFrame then return "world" end
     local f = focus
     while f do
+        -- forbidden Blizzard frames (store, communities...) error on any method call from addon code
+        local okF, forbidden = pcall(function() return f.IsForbidden and f:IsForbidden() end)
+        if not okF or forbidden then return nil end
         if f.GetAttribute then
             local ok, unit = pcall(f.GetAttribute, f, "unit")
             if ok and type(unit) == "string" and unit ~= "" then return "frame", unit end
         end
-        f = f.GetParent and f:GetParent()
+        local okP, parent = pcall(function() return f.GetParent and f:GetParent() end)
+        f = okP and parent or nil
     end
     return nil
 end

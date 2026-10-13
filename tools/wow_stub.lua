@@ -226,6 +226,19 @@ local SecretMT = {
     __concat = function() error("attempt to concatenate a secret value") end,
 }
 function stub.Secret(tag) return setmetatable({ __secret = true, tag = tag }, SecretMT) end
+
+-- A forbidden frame (Blizzard's store, communities...): IsForbidden works, every other method call errors
+-- the way the game does ("Attempt to access forbidden object from code tainted by an AddOn").
+function stub.ForbiddenFrame(parent)
+    local f = { kind = "Button", parent = parent, forbidden = true }
+    return setmetatable(f, { __index = function(_, k)
+        if k == "IsForbidden" then return function() return true end end
+        if type(Frame[k]) == "function" then
+            return function() error("Attempt to access forbidden object from code tainted by an AddOn") end
+        end
+        return Frame[k]
+    end })
+end
 function issecretvalue(v) return type(v) == "table" and rawget(v, "__secret") == true end
 
 -- Comparisons with "player" or "target" are permitted; others are secret when a secret unit is involved

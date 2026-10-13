@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Clicking on a forbidden Blizzard frame (Communities dialog, store...) no longer raises
+  "Attempt to access forbidden object"; such frames end the click check instead of being walked for a unit.
+
 ## 0.1.4 — 2026-10-08
 
 - CurseForge automatic packaging (`.pkgmeta`): every pushed tag is packaged by CurseForge itself, with

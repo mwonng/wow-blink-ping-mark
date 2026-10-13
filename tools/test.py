@@ -114,6 +114,13 @@ class ClickRuns(Base):
             self.click()
         self.assertFalse(self.I.wheel.IsShown(self.I.wheel))
 
+    def test_forbidden_frame_does_not_error_or_count(self):
+        # a Communities dialog button under the cursor (bug report 2026-10-13): GetParent on it errors
+        self.stub.focus = self.stub.ForbiddenFrame(self.lua.globals().UIParent)
+        for _ in range(3):
+            self.click()
+        self.assertFalse(self.I.wheel.IsShown(self.I.wheel))
+
     def test_double_click_setting(self):
         self.lua.globals().SlashCmdList.BLINKPINGMARK("clicks 2")
         self.assertEqual(self.db.clicks, 2)
