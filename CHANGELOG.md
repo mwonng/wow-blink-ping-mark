@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.5 — 2026-10-14
 
 - Clicking on a forbidden Blizzard frame (Communities dialog, store...) no longer raises
   "Attempt to access forbidden object"; such frames end the click check instead of being walked for a unit.
